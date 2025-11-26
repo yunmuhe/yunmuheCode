@@ -4,48 +4,63 @@
 
 ## 📁 项目结构
 
+本项目采用**前后端分离**架构：
+
 ```
 名字生成智能体/
-├── NameGenerationAgent/          # 主应用目录
+├── NameGenerationAgent/          # 后端智能体（Flask API服务）
 │   ├── config/                   # 配置文件
 │   ├── src/                      # 源代码
-│   │   ├── api/                  # API适配器
+│   │   ├── api/                  # API适配器（多平台集成）
 │   │   ├── core/                 # 核心业务逻辑
 │   │   ├── data/                 # 数据处理
 │   │   ├── utils/                # 工具函数
-│   │   └── web/                  # Web应用
+│   │   └── web/                  # Flask应用（测试框架）
 │   ├── tests/                    # 测试文件
-│   ├── docs/                     # 项目文档
-│   │   ├── CORPUS_INTEGRATION.md
-│   │   ├── SYSTEM_ARCHITECTURE.md
-│   │   └── PROJECT_STRUCTURE.md
+│   ├── docs/                     # 技术文档
 │   ├── main.py                   # 主启动脚本
-│   ├── requirements.txt          # Python依赖
-│   └── README.md                 # 项目说明
+│   └── requirements.txt          # Python依赖
+│
+├── 智能姓名生成系统/              # 前端应用（uni-app）
+│   ├── pages/                    # 页面目录
+│   │   ├── Generate/             # 生成页面
+│   │   ├── History/              # 历史记录
+│   │   ├── Favorites/            # 收藏夹
+│   │   └── Settings/             # 设置
+│   ├── common/                   # 公共模块
+│   │   ├── api.ts                # API请求封装
+│   │   ├── storage.ts            # 本地存储
+│   │   └── theme.ts              # 主题管理
+│   ├── static/                   # 静态资源
+│   ├── App.vue                   # 应用入口
+│   ├── main.js                   # 主入口
+│   ├── package.json              # 依赖配置
+│   └── README.md                 # 前端说明
 │
 ├── Chinese-Names-Corpus-master/  # 中文人名语料库（120万+）
-├── 智能姓名生成系统/              # 前端uni-app项目
-├── docs/                         # 开发文档
+├── docs/                         # 项目文档
 │   ├── 使用说明.md
-│   ├── 历史记录功能说明.md
-│   ├── 前端修复说明.md
-│   ├── 新增风格说明.md
-│   └── 首页响应式优化说明.md
+│   ├── Git使用指南.md
+│   ├── 项目架构说明.md
+│   └── 项目总结与PPT提示词.md
 ├── venv/                         # Python虚拟环境
 ├── CLAUDE.md                     # Claude Code指南
+├── README.md                     # 项目总览
 └── .gitignore                    # Git忽略文件
 ```
 
 ## 🚀 快速开始
 
-### 1. 安装依赖
+### 后端启动
+
+#### 1. 安装依赖
 
 ```bash
 cd NameGenerationAgent
 pip install -r requirements.txt
 ```
 
-### 2. 配置API密钥
+#### 2. 配置API密钥
 
 复制 `env.example` 为 `.env` 并配置至少一个API密钥：
 
@@ -54,7 +69,7 @@ cp env.example .env
 # 编辑.env文件，添加API密钥
 ```
 
-### 3. 启动应用
+#### 3. 启动后端服务
 
 ```bash
 # Windows
@@ -64,7 +79,43 @@ quick_start.bat
 python main.py
 ```
 
-访问 http://localhost:5000 使用Web界面。
+后端服务运行在 http://localhost:5000
+
+### 前端启动
+
+#### 1. 安装依赖
+
+```bash
+cd 智能姓名生成系统
+npm install
+```
+
+#### 2. 配置API地址（可选）
+
+前端默认请求 `http://127.0.0.1:5000`，如需修改可在 `.env` 中配置：
+
+```bash
+VITE_API_BASE_URL=http://127.0.0.1:5000
+```
+
+#### 3. 启动前端应用
+
+```bash
+# H5开发
+npm run dev:h5
+
+# 或使用HBuilderX运行到浏览器/小程序
+```
+
+前端服务运行在 http://localhost:5173
+
+### 配置CORS（重要）
+
+在后端 `NameGenerationAgent/.env` 中配置允许的跨域来源：
+
+```env
+ALLOWED_ORIGINS=http://localhost:5173,http://127.0.0.1:5173
+```
 
 ## 📚 文档说明
 

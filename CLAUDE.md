@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## 项目概述
 
-这是一个基于多平台大模型API的智能中文姓名生成系统，支持根据角色描述生成具有文化内涵的姓名。系统采用适配器模式集成多个AI平台（阿里云、硅基流动、百度、派欧云、AI Studio等），并包含语料库增强功能。
+这是一个基于多平台大模型API的智能中文姓名生成系统，采用**前后端分离**架构。后端（NameGenerationAgent）提供Flask API服务，集成6个AI平台（阿里云、硅基流动、百度、派欧云、AI Studio、白山云），结合120万+人名语料库。前端（智能姓名生成系统）是uni-app应用，提供现代化的用户界面，支持H5和小程序多端部署。
 
 ## 常用命令
 
@@ -72,46 +72,59 @@ flake8 NameGenerationAgent/src/
 ### 目录结构
 
 ```
-NameGenerationAgent/
-├── config/                    # 配置模块
-│   ├── settings.py           # 应用基础配置（环境、日志、缓存）
-│   ├── api_config.py         # 多平台API配置和管理器
-│   └── prompts.py            # 提示词模板（文化风格、性别、年龄）
-├── src/
-│   ├── api/                  # API集成层
-│   │   ├── adapters/         # 各平台适配器
-│   │   │   ├── base_adapter.py      # 基础适配器接口
-│   │   │   ├── aliyun_adapter.py    # 阿里云百炼
-│   │   │   ├── siliconflow_adapter.py
-│   │   │   ├── baishan_adapter.py
-│   │   │   ├── baidu_adapter.py
-│   │   │   ├── paiou_adapter.py     # 派欧云（OpenAI兼容）
-│   │   │   └── aistudio_adapter.py  # AI Studio
-│   │   └── unified_client.py # 统一API客户端（核心调度器）
-│   ├── core/                 # 核心业务逻辑
-│   │   ├── name_generator.py # 姓名生成器（主要业务逻辑）
-│   │   ├── knowledge_base.py # 知识库管理（姓氏、名字、寓意）
-│   │   └── corpus_enhancer.py # 语料库增强器
-│   ├── data/                 # 数据处理
-│   │   └── corpus_loader.py  # 语料库加载器
-│   ├── utils/                # 工具模块
-│   │   ├── cache_manager.py  # 缓存管理
-│   │   ├── logger.py         # 日志工具
-│   │   └── validation.py     # 输入输出验证
-│   └── web/                  # Web应用
-│       ├── app.py            # Flask应用主文件
-│       └── templates/        # HTML模板
-├── tests/                    # 测试文件
-├── data/                     # 运行时数据目录
-│   ├── cache/               # 缓存数据
-│   └── knowledge_base.json  # 知识库数据
-├── main.py                   # 主启动脚本
-└── requirements.txt          # 依赖包列表
-
-Chinese-Names-Corpus-master/  # 中文人名语料库（120万+）
-├── Chinese_Names_Corpus/     # 中文姓氏和称呼
-├── English_Names_Corpus/     # 英文人名（48万）
-└── Japanese_Names_Corpus/    # 日文人名（18万）
+名字生成智能体/
+├── NameGenerationAgent/          # 后端智能体（Flask API服务）
+│   ├── config/                   # 配置模块
+│   │   ├── settings.py           # 应用基础配置
+│   │   ├── api_config.py         # 多平台API配置
+│   │   └── prompts.py            # 提示词模板
+│   ├── src/
+│   │   ├── api/                  # API集成层
+│   │   │   ├── adapters/         # 各平台适配器
+│   │   │   │   ├── base_adapter.py
+│   │   │   │   ├── aliyun_adapter.py
+│   │   │   │   ├── siliconflow_adapter.py
+│   │   │   │   ├── baishan_adapter.py
+│   │   │   │   ├── baidu_adapter.py
+│   │   │   │   ├── paiou_adapter.py
+│   │   │   │   └── aistudio_adapter.py
+│   │   │   └── unified_client.py # 统一API客户端
+│   │   ├── core/                 # 核心业务逻辑
+│   │   │   ├── name_generator.py
+│   │   │   ├── knowledge_base.py
+│   │   │   └── corpus_enhancer.py
+│   │   ├── data/                 # 数据处理
+│   │   │   └── corpus_loader.py
+│   │   ├── utils/                # 工具模块
+│   │   │   ├── cache_manager.py
+│   │   │   ├── logger.py
+│   │   │   └── validation.py
+│   │   └── web/                  # Flask应用（测试框架）
+│   │       └── app.py            # 提供RESTful API
+│   ├── tests/                    # 测试文件
+│   ├── data/                     # 运行时数据
+│   ├── main.py                   # 主启动脚本
+│   └── requirements.txt          # Python依赖
+│
+├── 智能姓名生成系统/              # 前端应用（uni-app）
+│   ├── pages/                    # 页面目录
+│   │   ├── Generate/             # 生成页面（主要界面）
+│   │   ├── History/              # 历史记录
+│   │   ├── Favorites/            # 收藏夹
+│   │   └── Settings/             # 设置
+│   ├── common/                   # 公共模块
+│   │   ├── api.ts                # API请求封装
+│   │   ├── storage.ts            # 本地存储
+│   │   └── theme.ts              # 主题管理
+│   ├── static/                   # 静态资源
+│   ├── App.vue                   # 应用入口
+│   ├── main.js                   # 主入口
+│   └── package.json              # 依赖配置
+│
+└── Chinese-Names-Corpus-master/  # 中文人名语料库（120万+）
+    ├── Chinese_Names_Corpus/     # 中文姓氏和称呼
+    ├── English_Names_Corpus/     # 英文人名（48万）
+    └── Japanese_Names_Corpus/    # 日文人名（18万）
 ```
 
 ### 关键组件交互
