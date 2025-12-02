@@ -1,0 +1,48 @@
+[Unit]
+Description=Name Generation Agent API Service
+Documentation=https://github.com/yourusername/nameagent
+After=network.target network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=root
+Group=root
+WorkingDirectory=/home/NameGenerationAgent
+Environment="PATH=/home/NameGenerationAgent/venv/bin:/usr/local/bin:/usr/bin:/bin"
+Environment="PYTHONUNBUFFERED=1"
+
+# 启动命令
+ExecStart=/home/NameGenerationAgent/venv/bin/python /home/NameGenerationAgent/main.py
+
+# 启动前检查（可选）
+# ExecStartPre=/bin/sleep 2
+
+# 优雅停止
+ExecStop=/bin/kill -SIGTERM $MAINPID
+TimeoutStopSec=30
+
+# 自动重启策略
+Restart=always
+RestartSec=10
+StartLimitInterval=400
+StartLimitBurst=3
+
+# 日志配置
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=nameagent
+
+# 资源限制（可选）
+# LimitNOFILE=65536
+# LimitNPROC=4096
+
+# 安全加固（可选）
+# NoNewPrivileges=true
+# PrivateTmp=true
+# ProtectSystem=strict
+# ProtectHome=true
+# ReadWritePaths=/home/NameGenerationAgent/data /home/NameGenerationAgent/logs
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__thinking__sequentialthinking",
+      "Bash(tree:*)",
+      "Bash(python:*)",
+      "Bash(dir:*)",
+      "Bash(while read f)",
+      "Bash(done)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

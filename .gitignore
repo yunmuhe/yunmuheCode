@@ -84,14 +84,35 @@ test_*.json
 # Temporary files
 *.tmp
 *.bak
+*.backup
 *.swp
 *~
 .~*
 
-# Database
+# Database (忽略所有数据库文件，包括生成的names_corpus.db)
 *.db
 *.sqlite
 *.sqlite3
+
+# 保留数据库生成脚本，但忽略数据库文件本身
+# NameGenerationAgent/data/names_corpus.db 由 convert_csv_to_sqlite.py 生成
+# 用户需要自行运行脚本生成数据库（179MB，不适合提交到Git）
+
+# Archive (备份的旧数据)
+archive/
+**/archive/
+
+# natapp内网穿透相关
+natapp/
+*.natapp
+natapp.exe
+config.ini
+
+# 测试和调试脚本
+test_*.bat
+test_*.py
+fix_*.bat
+download_*.bat
 
 # Node modules (for frontend)
 node_modules/
@@ -112,11 +133,13 @@ yarn-error.log*
 docs/_build/
 site/
 
-# Large data files (optional - uncomment if needed)
-# *.csv
-# *.xlsx
-# *.json
-# Chinese-Names-Corpus-master/
+# Large data files and original corpus
+# 原始语料库已转换为SQLite数据库，原始文件已删除
+# 如需重新处理，可从data/archive/organized/恢复CSV文件
+Chinese-Names-Corpus-master/
+*.csv
+*.xlsx
+# *.json  # JSON文件保留
 
 # Frontend project (has its own git repo)
 智能姓名生成系统/
