@@ -9,7 +9,13 @@
       "Bash(done)",
       "Bash(git commit -m \"$(cat <<''EOF''\nchore: 优化项目结构，清理大型数据文件\n\n主要更改：\n1. 删除原始语料库文件（已转换为SQLite数据库）\n   - 删除 Chinese-Names-Corpus-master/ 目录（大型txt/xlsx文件）\n   - 删除 NameGenerationAgent/data/organized/ CSV文件\n   - 这些文件已完全迁移到 names_corpus.db（179MB）\n\n2. 清理过时的脚本和工具\n   - 删除 organize_data.py, process_corpus.py（已弃用）\n   - 删除 tools/ 目录（功能已整合到主代码）\n\n3. 添加新的工具脚本\n   - convert_csv_to_sqlite.py - SQLite数据库生成脚本\n   - verify_database.py - 数据库验证工具\n   - setup_domain.bat, start_natapp.bat - 域名配置和内网穿透工具\n\n4. 添加文档\n   - docs/android/ - Android模拟器配置指南\n   - docs/deployment/ - 部署和域名配置指南\n   - docs/troubleshooting/ - 问题诊断文档\n\n5. 更新配置文件\n   - 更新 .gitignore（忽略数据库文件，添加说明）\n   - 更新 CLAUDE.md（补充开发注意事项和技术细节）\n   - 更新 NameGenerationAgent/README.md\n\n6. 清理Python缓存文件\n   - 删除所有 __pycache__/ 目录和 *.pyc 文件\n\n项目结构优化完成，仓库大小显著减小，更易于协作开发。\n\n🤖 Generated with Claude Code\nEOF\n)\")",
       "Bash(git add:*)",
-      "Bash(git commit:*)"
+      "Bash(git commit:*)",
+      "Bash(git reset:*)",
+      "Bash(git clean:*)",
+      "Bash(cat:*)",
+      "Bash(git log:*)",
+      "Bash(git fsck:*)",
+      "Bash(git check-ignore:*)"
     ],
     "deny": [],
     "ask": []
