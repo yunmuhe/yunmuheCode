@@ -1,8 +1,8 @@
 declare const process: any;
 declare const uni: any;
 
-// 固定服务器地址
-const BASE_URL = 'http://127.0.0.1:5000';
+// 固定服务器地址 - 公网映射地址
+const BASE_URL = 'http://nameagent.natapp1.cc';
 
 type Nullable<T> = T | null | undefined;
 
