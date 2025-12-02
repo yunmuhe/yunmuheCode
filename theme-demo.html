@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>主题颜色演示</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            transition: background-color 0.3s, color 0.3s;
+        }
+        
+        .theme-demo {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        
+        .theme-selector {
+            margin-bottom: 30px;
+        }
+        
+        .theme-option {
+            display: inline-block;
+            margin-right: 10px;
+            padding: 10px 15px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .theme-option:hover {
+            opacity: 0.8;
+        }
+        
+        .theme-option.active {
+            font-weight: bold;
+            transform: scale(1.05);
+        }
+        
+        .component-demo {
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .nav-bar {
+            padding: 15px 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            color: white;
+            font-weight: bold;
+        }
+        
+        .tab-bar {
+            display: flex;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        
+        .tab-item {
+            flex: 1;
+            text-align: center;
+            padding: 10px;
+            border-radius: 4px;
+        }
+        
+        /* 主题样式 */
+        .light {
+            background-color: #f5f5f5;
+            color: #333333;
+        }
+        
+        .light .nav-bar {
+            background-color: #F8F8F8;
+            color: #000000;
+        }
+        
+        .light .tab-bar {
+            background-color: #FFFFFF;
+            color: #7A7E83;
+        }
+        
+        .light .tab-item.active {
+            color: #4a90e2;
+        }
+        
+        .dark {
+            background-color: #121212;
+            color: #f5f5f5;
+        }
+        
+        .dark .nav-bar {
+            background-color: #1f1f1f;
+            color: #ffffff;
+        }
+        
+        .dark .tab-bar {
+            background-color: #121212;
+            color: #aaaaaa;
+            border: 1px solid #333;
+        }
+        
+        .dark .tab-item.active {
+            color: #4a90e2;
+        }
+        
+        .blue {
+            background-color: #e3f2fd;
+            color: #0d47a1;
+        }
+        
+        .blue .nav-bar {
+            background-color: #1e88e5;
+            color: #ffffff;
+        }
+        
+        .blue .tab-bar {
+            background-color: #1565c0;
+            color: #90caf9;
+        }
+        
+        .blue .tab-item.active {
+            color: #ffffff;
+        }
+        
+        .green {
+            background-color: #e8f5e9;
+            color: #1b5e20;
+        }
+        
+        .green .nav-bar {
+            background-color: #43a047;
+            color: #ffffff;
+        }
+        
+        .green .tab-bar {
+            background-color: #2e7d32;
+            color: #a5d6a7;
+        }
+        
+        .green .tab-item.active {
+            color: #ffffff;
+        }
+        
+        .pink {
+            background-color: #fce4ec;
+            color: #880e4f;
+        }
+        
+        .pink .nav-bar {
+            background-color: #d81b60;
+            color: #ffffff;
+        }
+        
+        .pink .tab-bar {
+            background-color: #ad1457;
+            color: #f48fb1;
+        }
+        
+        .pink .tab-item.active {
+            color: #ffffff;
+        }
+        
+        .purple {
+            background-color: #f3e5f5;
+            color: #4a148c;
+        }
+        
+        .purple .nav-bar {
+            background-color: #8e24aa;
+            color: #ffffff;
+        }
+        
+        .purple .tab-bar {
+            background-color: #6a1b9a;
+            color: #ce93d8;
+        }
+        
+        .purple .tab-item.active {
+            color: #ffffff;
+        }
+    </style>
+</head>
+<body>
+    <div class="theme-demo">
+        <h1>主题颜色演示</h1>
+        
+        <div class="theme-selector">
+            <h2>选择主题:</h2>
+            <div class="theme-option active" data-theme="light">浅色</div>
+            <div class="theme-option" data-theme="dark">深色</div>
+            <div class="theme-option" data-theme="blue">蓝色</div>
+            <div class="theme-option" data-theme="green">绿色</div>
+            <div class="theme-option" data-theme="pink">粉色</div>
+            <div class="theme-option" data-theme="purple">紫色</div>
+        </div>
+        
+        <div class="component-demo light" id="demo-container">
+            <div class="nav-bar">
+                导航栏
+            </div>
+            
+            <div class="tab-bar">
+                <div class="tab-item active">首页</div>
+                <div class="tab-item">生成</div>
+                <div class="tab-item">历史</div>
+                <div class="tab-item">收藏</div>
+                <div class="tab-item">设置</div>
+            </div>
+            
+            <div class="content">
+                <h3>内容区域</h3>
+                <p>这是内容区域的示例文本，用于展示不同主题下的文本颜色效果。</p>
+                <p>您可以点击上方的主题选项来切换不同的主题颜色。</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const themeOptions = document.querySelectorAll('.theme-option');
+            const demoContainer = document.getElementById('demo-container');
+            
+            themeOptions.forEach(option => {
+                option.addEventListener('click', function() {
+                    // 移除所有选项的激活状态
+                    themeOptions.forEach(opt => opt.classList.remove('active'));
+                    
+                    // 添加当前选项的激活状态
+                    this.classList.add('active');
+                    
+                    // 获取选中的主题
+                    const selectedTheme = this.getAttribute('data-theme');
+                    
+                    // 更新演示容器的主题类
+                    demoContainer.className = 'component-demo ' + selectedTheme;
+                });
+            });
+        });
+    </script>
+</body>
+</html>
