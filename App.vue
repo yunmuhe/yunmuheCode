@@ -1,14 +1,14 @@
 <script>
-	import { applyTheme, loadTheme } from './common/theme'
+	import { applyTheme, getStoredTheme } from './common/theme'
 
 	export default {
 		onLaunch() {
-			const theme = loadTheme();
+			const theme = getStoredTheme();
 			applyTheme(theme)
 			console.log('App Launch')
 		},
 		onShow() {
-			const theme = loadTheme();
+			const theme = getStoredTheme();
 			applyTheme(theme)
 			console.log('App Show')
 		},
