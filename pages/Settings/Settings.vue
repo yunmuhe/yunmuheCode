@@ -23,8 +23,8 @@
 		<view class="settings-group">
 			<text class="group-title">智能体连接</text>
 			<view class="settings-item">
-				<text class="item-label">接口地址</text>
-				<text class="item-value">{{ apiBaseUrl }}</text>
+				<text class="item-label">当前地址</text>
+				<text class="item-value" style="font-size: 24rpx; word-break: break-all;">{{ apiBaseUrl }}</text>
 			</view>
 			<view class="settings-item">
 				<text class="item-label">连接状态</text>
@@ -34,6 +34,18 @@
 					<text v-if="health.version" style="margin-left:12rpx;color:#999;">v{{ health.version }}</text>
 					<button class="stats-btn" style="margin-left:16rpx;" size="mini" @click="refreshHealth" :disabled="health.loading">
 						{{ health.loading ? '检查中...' : '重新检查' }}
+					</button>
+				</view>
+			</view>
+			<view class="settings-item">
+				<text class="item-label">服务器配置</text>
+				<view style="display:flex;gap:16rpx;">
+					<button class="config-btn" size="mini" @click="handleConfigServer">手动配置</button>
+					<button class="config-btn" size="mini" @click="handleAutoDiscover" :disabled="discovering">
+						{{ discovering ? '扫描中...' : '自动发现' }}
+					</button>
+					<button v-if="getCustomServerUrl()" class="config-btn danger" size="mini" @click="handleResetServer">
+						恢复默认
 					</button>
 				</view>
 			</view>
@@ -159,7 +171,16 @@
 <script lang="ts" setup>
 	import { ref, reactive, computed } from 'vue';
 	import { onLoad } from '@dcloudio/uni-app';
-	import { fetchBackendOptions, fetchBackendStats, fetchHealth, getApiBaseUrl } from '../../common/api';
+	import {
+		fetchBackendOptions,
+		fetchBackendStats,
+		fetchHealth,
+		getApiBaseUrl,
+		discoverServer,
+		setServerUrl,
+		getCustomServerUrl,
+		clearCustomServerUrl
+	} from '../../common/api';
 	import { applyTheme, getStoredTheme, ThemeKey } from '../../common/theme';
 
 	const isLogin = ref(false);
@@ -186,7 +207,7 @@
 	const styleIndex = ref(0);
 
 	// 接入后端：可用API与健康、统计
-	const apiBaseUrl = getApiBaseUrl();
+	const apiBaseUrl = ref(getApiBaseUrl());
 	const apiOptions = ref<string[]>([]);
 	const apiIndex = ref(0);
 	const apiLabelMap: Record<string, string> = {
@@ -201,6 +222,7 @@
 
 	const health = ref({ ok: false, version: '', loading: false });
 	const stats = ref<any>(null);
+	const discovering = ref(false);
 
 	const themes = [
 		{ name: '浅色', value: 'light' },
@@ -340,6 +362,81 @@
 					title: '分享成功',
 					icon: 'success'
 				});
+			}
+		});
+	};
+
+	// 手动配置服务器地址
+	const handleConfigServer = () => {
+		const customUrl = getCustomServerUrl();
+		uni.showModal({
+			title: '配置服务器地址',
+			content: '请输入后端服务器地址（如 http://192.168.1.100:5000）',
+			editable: true,
+			placeholderText: customUrl || 'http://192.168.1.100:5000',
+			success: async (res) => {
+				if (res.confirm && res.content) {
+					const url = res.content.trim();
+					if (!url.startsWith('http://') && !url.startsWith('https://')) {
+						uni.showToast({ title: '地址格式错误，必须以http://或https://开头', icon: 'none', duration: 3000 });
+						return;
+					}
+
+					uni.showLoading({ title: '测试连接中...', mask: true });
+					const success = await setServerUrl(url);
+					uni.hideLoading();
+
+					if (success) {
+						apiBaseUrl.value = getApiBaseUrl();
+						uni.showToast({ title: '配置成功！', icon: 'success' });
+						// 自动刷新健康状态
+						refreshHealth();
+					} else {
+						uni.showToast({ title: '连接失败，请检查地址和网络', icon: 'none', duration: 3000 });
+					}
+				}
+			}
+		});
+	};
+
+	// 自动发现服务器
+	const handleAutoDiscover = async () => {
+		discovering.value = true;
+		uni.showLoading({ title: '正在扫描网络...', mask: true });
+
+		try {
+			const url = await discoverServer();
+			uni.hideLoading();
+
+			if (url) {
+				apiBaseUrl.value = getApiBaseUrl();
+				uni.showToast({ title: `已发现服务器: ${url}`, icon: 'success', duration: 3000 });
+				// 自动刷新健康状态
+				refreshHealth();
+			} else {
+				uni.showToast({ title: '未找到可用服务器，请手动配置', icon: 'none', duration: 3000 });
+			}
+		} catch (e) {
+			uni.hideLoading();
+			uni.showToast({ title: '扫描失败: ' + e, icon: 'none', duration: 3000 });
+		} finally {
+			discovering.value = false;
+		}
+	};
+
+	// 恢复默认服务器地址
+	const handleResetServer = () => {
+		uni.showModal({
+			title: '恢复默认设置',
+			content: '确定要清除自定义服务器地址，恢复默认配置吗？',
+			success: (res) => {
+				if (res.confirm) {
+					clearCustomServerUrl();
+					apiBaseUrl.value = getApiBaseUrl();
+					uni.showToast({ title: '已恢复默认设置', icon: 'success' });
+					// 自动刷新健康状态
+					refreshHealth();
+				}
 			}
 		});
 	};
@@ -539,7 +636,8 @@
 
 	.backup-btn,
 	.stats-btn,
-	.clear-btn {
+	.clear-btn,
+	.config-btn {
 		border: 1rpx solid #4cd964;
 		color: #4cd964;
 		background-color: transparent;
@@ -549,9 +647,19 @@
 		line-height: 56rpx;
 	}
 
+	.config-btn.danger {
+		border-color: #e74c3c;
+		color: #e74c3c;
+	}
+
 	.backup-btn:active,
 	.stats-btn:active,
-	.clear-btn:active {
+	.clear-btn:active,
+	.config-btn:active {
 		background-color: rgba(76, 217, 100, 0.1);
+	}
+
+	.config-btn.danger:active {
+		background-color: rgba(231, 76, 60, 0.1);
 	}
 </style>

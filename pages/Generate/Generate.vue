@@ -150,6 +150,7 @@
 		fetchHealth,
 		addFavorite,
 		deleteFavorites,
+		ensureServerUrl,
 		type GeneratedName,
 	} from '../../common/api';
 
@@ -319,8 +320,19 @@
 		}
 	};
 
-	onLoad(() => {
+	onLoad(async () => {
+		// 1. 首先确保服务器地址可用（自动发现）
+		try {
+			await ensureServerUrl();
+			console.log('[Generate页面] 服务器地址检查完成');
+		} catch (e) {
+			console.error('[Generate页面] 服务器地址检查失败:', e);
+		}
+
+		// 2. 加载可用选项
 		loadOptions();
+
+		// 3. 刷新健康状态
 		refreshHealth();
 	});
 
