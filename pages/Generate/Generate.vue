@@ -497,15 +497,18 @@
 		display: flex;
 		flex-direction: column;
 		height: 100%;
+		max-width: 750px; /* 固定最大宽度 */
+		margin: 0 auto; /* 大屏居中 */
 		background-color: #f0f0f0;
+		box-shadow: 0 0 20px rgba(0, 0, 0, 0.1); /* 添加阴影，大屏更美观 */
 	}
 
 	.nav-bar {
-		height: 88rpx;
+		height: 44px;
 		background-color: #ffffff;
 		border-bottom: 1px solid #eee;
-		padding: 0 20rpx;
-		box-shadow: 0 2rpx 10rpx rgba(0, 0, 0, 0.05);
+		padding: 0 10px;
+		box-shadow: 0 1px 5px rgba(0, 0, 0, 0.05);
 	}
 
 	.nav-content {
@@ -519,7 +522,7 @@
 		display: flex;
 		align-items: center;
 		justify-content: space-between;
-		padding: 10rpx 20rpx;
+		padding: 5px 10px;
 		background-color: #fff;
 		border-bottom: 1px solid #eee;
 	}
@@ -530,10 +533,10 @@
 	}
 
 	.dot {
-		width: 16rpx;
-		height: 16rpx;
+		width: 8px;
+		height: 8px;
 		border-radius: 50%;
-		margin-right: 12rpx;
+		margin-right: 6px;
 		background-color: #ccc;
 	}
 	.dot.ok {
@@ -544,18 +547,18 @@
 	}
 
 	.health-text {
-		font-size: 26rpx;
+		font-size: 13px;
 		color: #333;
-		margin-right: 10rpx;
+		margin-right: 5px;
 	}
 	.health-sub {
-		font-size: 22rpx;
+		font-size: 11px;
 		color: #999;
 	}
 
 	.refresh-btn {
-		width: 60rpx;
-		height: 60rpx;
+		width: 30px;
+		height: 30px;
 		display: flex;
 		align-items: center;
 		justify-content: center;
@@ -564,7 +567,7 @@
 	}
 
 	.options-panel {
-		padding: 20rpx;
+		padding: 10px;
 		background-color: #ffffff;
 		border-bottom: 1px solid #eee;
 	}
@@ -572,7 +575,7 @@
 	.option-row {
 		display: flex;
 		justify-content: space-between;
-		margin-bottom: 12rpx;
+		margin-bottom: 6px;
 	}
 
 	.option-row:last-child {
@@ -582,9 +585,9 @@
 	.option-item {
 		flex: 1;
 		background-color: #f6f6f6;
-		border-radius: 12rpx;
-		padding: 16rpx 20rpx;
-		margin-right: 12rpx;
+		border-radius: 6px;
+		padding: 8px 10px;
+		margin-right: 6px;
 		display: flex;
 		flex-direction: column;
 	}
@@ -594,13 +597,13 @@
 	}
 
 	.option-label {
-		font-size: 24rpx;
+		font-size: 12px;
 		color: #888;
-		margin-bottom: 8rpx;
+		margin-bottom: 4px;
 	}
 
 	.option-value {
-		font-size: 28rpx;
+		font-size: 14px;
 		color: #333;
 	}
 
@@ -609,21 +612,21 @@
 	}
 
 	.option-value.base-url {
-		font-size: 24rpx;
+		font-size: 12px;
 		color: #ad8b00;
 		word-break: break-all;
 	}
 
 	.page-title {
-		font-size: 32rpx;
+		font-size: 16px;
 		font-weight: bold;
 		color: #333;
 	}
 
 	.back-btn,
 	.batch-btn {
-		width: 60rpx;
-		height: 60rpx;
+		width: 30px;
+		height: 30px;
 		display: flex;
 		align-items: center;
 		justify-content: center;
@@ -636,7 +639,7 @@
 	.chat-container {
 		flex: 1;
 		overflow: hidden;
-		padding: 20rpx;
+		padding: 10px;
 	}
 
 	.messages-container {
@@ -645,7 +648,7 @@
 
 	.message {
 		display: flex;
-		margin-bottom: 30rpx;
+		margin-bottom: 15px;
 	}
 
 	.system-message {
@@ -661,14 +664,14 @@
 	}
 
 	.avatar {
-		width: 60rpx;
-		height: 60rpx;
+		width: 30px;
+		height: 30px;
 		border-radius: 50%;
 		background-color: #4a90e2;
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		margin-right: 20rpx;
+		margin-right: 10px;
 		flex-shrink: 0;
 	}
 
@@ -678,10 +681,10 @@
 
 	.message-bubble {
 		background-color: #fff;
-		border-radius: 16rpx;
-		padding: 20rpx;
-		margin-bottom: 20rpx;
-		box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.03);
+		border-radius: 8px;
+		padding: 10px;
+		margin-bottom: 10px;
+		box-shadow: 0 2px 6px rgba(0, 0, 0, 0.03);
 	}
 
 	.system-message .message-bubble {
@@ -698,30 +701,30 @@
 	}
 
 	.message-text {
-		font-size: 28rpx;
-		line-height: 40rpx;
+		font-size: 14px;
+		line-height: 20px;
 	}
 
 	.name-suggestions {
-		margin-top: 20rpx;
+		margin-top: 10px;
 	}
 
 	.suggestion-card {
 		background-color: #f8f8f8;
-		border-radius: 16rpx;
-		padding: 20rpx;
-		margin-bottom: 20rpx;
+		border-radius: 8px;
+		padding: 10px;
+		margin-bottom: 10px;
 	}
 
 	.card-header {
 		display: flex;
 		justify-content: space-between;
 		align-items: center;
-		margin-bottom: 15rpx;
+		margin-bottom: 8px;
 	}
 
 	.name-text {
-		font-size: 32rpx;
+		font-size: 16px;
 		font-weight: bold;
 		color: #333;
 	}
@@ -731,8 +734,8 @@
 	}
 
 	.action-btn {
-		width: 50rpx;
-		height: 50rpx;
+		width: 25px;
+		height: 25px;
 		display: flex;
 		align-items: center;
 		justify-content: center;
@@ -742,46 +745,46 @@
 	}
 
 	.meaning-text {
-		font-size: 26rpx;
+		font-size: 13px;
 		color: #666;
-		line-height: 40rpx;
-		margin-bottom: 15rpx;
+		line-height: 20px;
+		margin-bottom: 8px;
 	}
 
 	.tags {
 		display: flex;
 		flex-wrap: wrap;
-		gap: 12rpx;
+		gap: 6px;
 	}
 
 	.tag {
-		font-size: 22rpx;
+		font-size: 11px;
 		color: #4a90e2;
 		background-color: #eaf4ff;
-		padding: 6rpx 16rpx;
-		border-radius: 8rpx;
+		padding: 3px 8px;
+		border-radius: 4px;
 	}
 
 	.features {
-		margin-top: 12rpx;
+		margin-top: 6px;
 		display: flex;
 		flex-wrap: wrap;
-		gap: 8rpx;
+		gap: 4px;
 	}
 
 	.feature-pill {
-		font-size: 22rpx;
+		font-size: 11px;
 		color: #666;
 		background-color: #f0f0f0;
-		padding: 6rpx 14rpx;
-		border-radius: 16rpx;
+		padding: 3px 7px;
+		border-radius: 8px;
 	}
 
 	.meta-info {
-		margin-top: 12rpx;
+		margin-top: 6px;
 		display: flex;
 		flex-direction: column;
-		font-size: 24rpx;
+		font-size: 12px;
 		color: #666;
 	}
 
@@ -790,20 +793,20 @@
 		flex-direction: column;
 		align-items: center;
 		justify-content: center;
-		padding: 80rpx 20rpx;
+		padding: 40px 10px;
 		color: #999;
 	}
 
 	.empty-text {
-		margin-top: 20rpx;
-		font-size: 26rpx;
+		margin-top: 10px;
+		font-size: 13px;
 	}
 
 	/* 底部输入区域 */
 	.input-area {
 		display: flex;
 		align-items: flex-end;
-		padding: 20rpx;
+		padding: 10px;
 		background-color: #fff;
 		border-top: 1px solid #eee;
 	}
@@ -811,31 +814,31 @@
 	.input-container {
 		flex: 1;
 		background-color: #f0f0f0;
-		border-radius: 10rpx;
-		padding: 15rpx;
-		margin-right: 20rpx;
+		border-radius: 5px;
+		padding: 8px;
+		margin-right: 10px;
 	}
 
 	.description-input {
 		width: 100%;
-		min-height: 40rpx;
-		max-height: 200rpx;
-		font-size: 28rpx;
-		line-height: 40rpx;
+		min-height: 20px;
+		max-height: 100px;
+		font-size: 14px;
+		line-height: 20px;
 		color: #333;
-		padding: 10rpx 0;
+		padding: 5px 0;
 	}
 
 	.char-count {
 		text-align: right;
-		font-size: 20rpx;
+		font-size: 10px;
 		color: #999;
-		margin-top: 10rpx;
+		margin-top: 5px;
 	}
 
 	.send-btn {
-		width: 80rpx;
-		height: 80rpx;
+		width: 40px;
+		height: 40px;
 		background-color: #4a90e2;
 		color: #fff;
 		border-radius: 50%;
