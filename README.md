@@ -92,10 +92,12 @@ npm install
 
 #### 2. 配置API地址（可选）
 
-前端默认请求 `http://127.0.0.1:5000`，如需修改可在 `.env` 中配置：
+前端默认使用natapp公网映射地址 `http://nameagent.natapp1.cc`。
 
-```bash
-VITE_API_BASE_URL=http://127.0.0.1:5000
+如需使用本地地址，编辑 `common/api.ts` 中的 `BASE_URL`：
+
+```typescript
+const BASE_URL = 'http://127.0.0.1:5000';  // 本地开发
 ```
 
 #### 3. 启动前端应用
@@ -114,7 +116,8 @@ npm run dev:h5
 在后端 `NameGenerationAgent/.env` 中配置允许的跨域来源：
 
 ```env
-ALLOWED_ORIGINS=http://localhost:5173,http://127.0.0.1:5173
+# 本地开发 + natapp公网访问
+ALLOWED_ORIGINS=http://localhost:5173,http://127.0.0.1:5173,http://nameagent.natapp1.cc
 ```
 
 ## 📚 文档说明

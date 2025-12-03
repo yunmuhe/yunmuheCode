@@ -163,21 +163,20 @@ python process_corpus.py    # 生成结构化数据（已弃用，改用SQLite�
 
 **优先级顺序**：配置在 `config/api_config.py` 的 `get_primary_api()` 方法中
 
-### 前端智能服务器发现
+### 前端API配置
 
-**问题**：Android模拟器/真机IP地址变化导致无法连接后端
+前端使用固定的服务器地址，配置在 `智能姓名生成系统/common/api.ts` 中：
 
-**解决方案**（`智能姓名生成系统/common/api.ts:111-174`）：
+```typescript
+const BASE_URL = 'http://nameagent.natapp1.cc';  // 公网映射地址
+```
 
-1. 检查用户自定义服务器地址（`uni.storage`）并测试连通性
-2. 如失效，根据平台生成候选地址列表：
-   - Android: `10.0.2.2`（模拟器） + `192.168.10.x` + `192.168.1.x`
-   - iOS: `localhost:5000`
-   - H5: `127.0.0.1:5000`
-3. 并行测试所有候选地址（`Promise.all` + `/health` 端点）
-4. 选择响应最快的可用服务器
-
-**关键函数**：`discoverServer()`, `testServerUrl()`, `setServerUrl()`, `ensureServerUrl()`
+**修改服务器地址**：
+- 直接编辑 `common/api.ts` 中的 `BASE_URL` 常量
+- 本地开发：`http://127.0.0.1:5000`
+- Android模拟器：`http://10.0.2.2:5000`
+- Android真机：`http://192.168.x.x:5000`（局域网IP）
+- 公网访问：`http://nameagent.natapp1.cc`（natapp内网穿透）
 
 ### 目录结构
 
@@ -278,7 +277,7 @@ POST /generate → NameGenerator.generate_names()
   - 参数：`description`（必需）, `count`, `cultural_style`, `gender`, `age`, `preferred_api`, `use_cache`
   - 返回：`{success, names: [...], api_name, model, total_generated}`
 - `GET /options` - 获取可用选项（文化风格、性别、年龄、已配置的API列表）
-- `GET /health` - 健康检查（前端服务器发现机制使用此端点）
+- `GET /health` - 健康检查（返回服务器状态和版本号）
 
 **历史与收藏**：
 - `GET /history/list` - 获取生成历史（支持分页）
@@ -309,11 +308,9 @@ SILICONFLOW_API_KEY=sk_xxx
 BAISHAN_API_KEY=sk_xxx
 BAIDU_API_KEY=sk_xxx
 
-# 前端跨域配置（重要：APP远程访问必须配置）
-# 本地开发
-ALLOWED_ORIGINS=http://localhost:5173,http://127.0.0.1:5173
-# 生产环境（添加你的域名或内网穿透地址）
-# ALLOWED_ORIGINS=https://api.yourdomain.com,https://xxx.natappfree.cc
+# 前端跨域配置（重要：前端访问必须配置）
+# 本地开发 + natapp公网访问
+ALLOWED_ORIGINS=http://localhost:5173,http://127.0.0.1:5173,http://nameagent.natapp1.cc
 
 # 可选配置
 DEBUG=True
@@ -419,18 +416,27 @@ tail -f logs/app.log
 
 **前端无法连接后端**：
 - 检查后端是否运行：`curl http://127.0.0.1:5000/health`
-- 检查CORS配置：在 `.env` 中添加 `ALLOWED_ORIGINS=http://localhost:5173`
+- 检查CORS配置：在 `.env` 中配置 `ALLOWED_ORIGINS=http://localhost:5173,http://127.0.0.1:5173,http://nameagent.natapp1.cc`
 - 检查防火墙：确保5000和5173端口未被阻止
+- 重启后端：修改 `.env` 后需要重启后端服务
 
 **Android模拟器连接问题**：
-- 检查本机IP：`ipconfig | findstr "IPv4"`
-- 更新前端配置：`智能姓名生成系统/common/api.ts` 中的 `DEFAULT_BASE_URL_ANDROID`
+- 修改前端配置：编辑 `智能姓名生成系统/common/api.ts` 中的 `BASE_URL`
+  ```typescript
+  const BASE_URL = 'http://10.0.2.2:5000';  // Android模拟器专用地址
+  ```
+- 或使用natapp公网地址（无需修改）
 - 配置防火墙允许5000端口：
   ```powershell
   # 以管理员身份运行
   New-NetFirewallRule -DisplayName "Flask Port 5000" -Direction Inbound -Protocol TCP -LocalPort 5000 -Action Allow
   ```
-- 注：前端有自动服务器发现机制，会自动扫描 `10.0.2.2` 和 `192.168.x.x` 网段
+
+**Android真机连接问题**：
+- 确保手机和电脑在同一局域网
+- 检查电脑局域网IP：`ipconfig | findstr "IPv4"`
+- 修改前端 `common/api.ts` 中的 `BASE_URL` 为电脑局域网IP
+- 或使用natapp公网地址（推荐）
 
 **缓存问题**：
 - 清除缓存：`rm -rf data/cache/*` 或 `curl -X POST http://127.0.0.1:5000/cache/clear`
