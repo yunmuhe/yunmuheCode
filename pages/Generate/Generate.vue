@@ -497,10 +497,8 @@
 		display: flex;
 		flex-direction: column;
 		height: 100%;
-		max-width: 750px; /* 固定最大宽度 */
-		margin: 0 auto; /* 大屏居中 */
+		width: 750px; /* 固定宽度，匹配viewport */
 		background-color: #f0f0f0;
-		box-shadow: 0 0 20px rgba(0, 0, 0, 0.1); /* 添加阴影，大屏更美观 */
 	}
 
 	.nav-bar {
