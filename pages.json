@@ -1,84 +1,56 @@
 {
+	"easycom": {
+		"autoscan": true,
+		"custom": {
+			"^uni-(.*)": "@/uni_modules/uni-$1/components/uni-$1/uni-$1.vue"
+		}
+	},
 	"pages": [ //pages数组中第一项表示应用启动页，参考：https://uniapp.dcloud.io/collocation/pages
 		{
 			"path" : "pages/Index/Index",
-			"style" : 
+			"style" :
 			{
-				"navigationBarTitleText" : ""
+				"navigationBarTitleText" : "智能姓名生成器"
 			}
 		},
 		{
 			"path" : "pages/Generate/Generate",
-			"style" : 
+			"style" :
 			{
-				"navigationBarTitleText" : ""
+				"navigationBarTitleText" : "",
+				"navigationStyle": "custom"
 			}
 		},
 		{
 			"path" : "pages/Favorites/Favorites",
-			"style" : 
+			"style" :
 			{
-				"navigationBarTitleText" : ""
+				"navigationBarTitleText" : "",
+				"navigationStyle": "custom"
 			}
 		},
 		{
 			"path" : "pages/History/History",
-			"style" : 
+			"style" :
 			{
-				"navigationBarTitleText" : ""
+				"navigationBarTitleText" : "",
+				"navigationStyle": "custom"
 			}
 		},
 		{
 			"path" : "pages/Settings/Settings",
-			"style" : 
+			"style" :
 			{
-				"navigationBarTitleText" : ""
+				"navigationBarTitleText" : "",
+				"navigationStyle": "custom"
 			}
 		}
 	],
 	"globalStyle": {
 		"navigationBarTextStyle": "black",
-		"navigationBarTitleText": "uni-app",
+		"navigationBarTitleText": "智能姓名生成器",
 		"navigationBarBackgroundColor": "#F8F8F8",
 		"backgroundColor": "#F8F8F8"
-	},
-	"tabBar": {
-		"color": "#7A7E83",
-		"selectedColor": "#4a90e2",
-		"backgroundColor": "#FFFFFF",
-		"borderStyle": "black",
-		"list": [
-			{
-				"pagePath": "pages/Index/Index",
-				"text": "首页",
-				"iconPath": "static/logo.png",
-				"selectedIconPath": "static/logo.png"
-			},
-			{
-				"pagePath": "pages/Generate/Generate",
-				"text": "生成",
-				"iconPath": "static/logo.png",
-				"selectedIconPath": "static/logo.png"
-			},
-			{
-				"pagePath": "pages/Favorites/Favorites",
-				"text": "收藏",
-				"iconPath": "static/logo.png",
-				"selectedIconPath": "static/logo.png"
-			},
-			{
-				"pagePath": "pages/History/History",
-				"text": "历史",
-				"iconPath": "static/logo.png",
-				"selectedIconPath": "static/logo.png"
-			},
-			{
-				"pagePath": "pages/Settings/Settings",
-				"text": "设置",
-				"iconPath": "static/logo.png",
-				"selectedIconPath": "static/logo.png"
-			}
-		]
 	},
 	"uniIdRouter": {}
 }

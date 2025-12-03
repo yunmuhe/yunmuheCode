@@ -2,15 +2,13 @@
 	<view class="generate-page">
 		<!-- 顶部导航栏 -->
 		<view class="nav-bar">
-			<view class="nav-content">
-				<button class="back-btn" @click="handleBack">
-					<uni-icons type="arrowleft" size="24" color="#333"></uni-icons>
-				</button>
-				<text class="page-title">姓名生成助手</text>
-				<button class="batch-btn" @click="handleBatchGenerate">
-					<uni-icons type="list" size="24" color="#333"></uni-icons>
-				</button>
-			</view>
+			<button class="back-btn" @click="handleBack">
+				<uni-icons type="arrowleft" size="24" color="#333"></uni-icons>
+			</button>
+			<text class="page-title">姓名生成助手</text>
+			<button class="batch-btn" @click="handleBatchGenerate">
+				<uni-icons type="list" size="24" color="#333"></uni-icons>
+			</button>
 		</view>
 		<!-- 后端连接状态 -->
 		<view class="health-bar">
@@ -61,6 +59,14 @@
 						<text class="option-value">{{ currentApiLabel }}</text>
 					</view>
 				</picker>
+				<picker mode="selector" :range="modelLabels" :value="modelIndex" @change="handleModelChange" :disabled="loadingModels || !availableModels.length">
+					<view class="option-item" :class="{ disabled: loadingModels || !availableModels.length }">
+						<text class="option-label">模型</text>
+						<text class="option-value">{{ currentModelLabel }}</text>
+					</view>
+				</picker>
+			</view>
+			<view class="option-row" v-if="false">
 				<view class="option-item readonly">
 					<text class="option-label">接口地址</text>
 					<text class="option-value base-url">{{ apiBaseUrl }}</text>
@@ -141,7 +147,7 @@
 	</view>
 </template>
 <script lang="ts" setup>
-	import { ref, computed, nextTick } from 'vue';
+	import { ref, computed, nextTick, watch } from 'vue';
 	import { onLoad } from '@dcloudio/uni-app';
 	import {
 		fetchBackendOptions,
@@ -150,8 +156,12 @@
 		fetchHealth,
 		addFavorite,
 		deleteFavorites,
+		getModels,
 		type GeneratedName,
+		type ModelInfo,
 	} from '../../common/api';
+	import uniIcons from '@/uni_modules/uni-icons/components/uni-icons/uni-icons.vue';
+	import uniLoadMore from '@/uni_modules/uni-load-more/components/uni-load-more/uni-load-more.vue';
 
 	interface NameCard extends GeneratedName {
 		isFavorite: boolean;
@@ -175,8 +185,14 @@
 	const ageIndex = ref(0);
 	const apiIndex = ref(0);
 	const countIndex = ref(4); // 默认5个
+	const modelIndex = ref(0); // 模型索引
 
 	const countValues = ref<number[]>([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
+
+	// 模型相关
+	const availableModels = ref<ModelInfo[]>([]); // 当前API平台的可用模型
+	const allModels = ref<Record<string, ModelInfo[]>>({}); // 所有平台的模型
+	const loadingModels = ref(false); // 加载模型中
 
 	const apiMeta = ref({
 		apiName: '',
@@ -252,6 +268,24 @@
 	});
 	const currentCountLabel = computed(() => `${currentCount.value}个`);
 
+	// 模型相关computed
+	const modelLabels = computed(() => {
+		if (loadingModels.value) return ['加载中...'];
+		if (!availableModels.value.length) return ['自动选择'];
+		return availableModels.value.map((model) => model.name || model.id);
+	});
+
+	const currentModel = computed(() => {
+		if (!availableModels.value.length) return null;
+		return availableModels.value[modelIndex.value] || null;
+	});
+
+	const currentModelLabel = computed(() => {
+		if (loadingModels.value) return '加载中...';
+		if (!availableModels.value.length) return '自动选择';
+		return currentModel.value?.name || currentModel.value?.id || '自动选择';
+	});
+
 	const ensureDefaultOptions = () => {
 		if (!availableStyles.value.length) {
 			availableStyles.value = ['chinese_modern', 'chinese_traditional', 'fantasy'];
@@ -319,9 +353,53 @@
 		}
 	};
 
-	onLoad(() => {
-		// 加载可用选项
-		loadOptions();
+	// 加载模型列表
+	const loadModels = async (retryCount = 0) => {
+		try {
+			loadingModels.value = true;
+			const res = await getModels();
+			if (res.success && res.models) {
+				allModels.value = res.models;
+				// 如果当前选中了API，更新该API的模型列表
+				if (currentApi.value && allModels.value[currentApi.value]) {
+					availableModels.value = allModels.value[currentApi.value];
+					modelIndex.value = 0; // 重置为第一个模型
+				}
+			}
+		} catch (error) {
+			console.warn('加载模型列表失败:', error);
+			// 失败时自动重试一次
+			if (retryCount < 1) {
+				setTimeout(() => loadModels(retryCount + 1), 2000);
+				return; // 保持 loadingModels 为 true
+			}
+		} finally {
+			loadingModels.value = false;
+		}
+	};
+
+	// 当API变化时，更新可用模型列表
+	watch(currentApi, async (newApi) => {
+		if (newApi && allModels.value[newApi]) {
+			availableModels.value = allModels.value[newApi];
+			modelIndex.value = 0; // 重置为第一个模型
+		} else if (newApi && !Object.keys(allModels.value).length) {
+			// allModels 为空说明 loadModels 还没成功，触发重新加载
+			availableModels.value = [];
+			modelIndex.value = 0;
+			await loadModels();
+		} else {
+			availableModels.value = [];
+			modelIndex.value = 0;
+		}
+	});
+
+	onLoad(async () => {
+		// 先加载可用选项（确保 currentApi 有值）
+		await loadOptions();
+
+		// 再加载模型列表（依赖 currentApi）
+		loadModels();
 
 		// 刷新健康状态
 		refreshHealth();
@@ -358,6 +436,7 @@
 				age: currentAge.value,
 				preferred_api: currentApi.value,
 				use_cache: true,
+				model: currentModel.value?.id || undefined, // 添加模型参数
 			};
 
 			const res = await generateNamesApi(payload);
@@ -454,6 +533,13 @@
 	const handleCountChange = (e : any) => {
 		countIndex.value = Number(e.detail.value) || 0;
 	};
+	const handleModelChange = (e : any) => {
+		if (!availableModels.value.length) {
+			modelIndex.value = 0;
+			return;
+		}
+		modelIndex.value = Number(e.detail.value) || 0;
+	};
 
 	const formatFeatureLabel = (key : string, value : any) => {
 		const labelMap: Record<string, string> = {
@@ -497,7 +583,7 @@
 		display: flex;
 		flex-direction: column;
 		height: 100%;
-		width: 750px; /* 固定宽度，匹配viewport */
+		width: 100%;
 		background-color: #f0f0f0;
 	}
 
@@ -507,13 +593,9 @@
 		border-bottom: 1px solid #eee;
 		padding: 0 10px;
 		box-shadow: 0 1px 5px rgba(0, 0, 0, 0.05);
-	}
-
-	.nav-content {
 		display: flex;
 		align-items: center;
 		justify-content: space-between;
-		height: 100%;
 	}
 
 	.health-bar {
@@ -568,12 +650,15 @@
 		padding: 10px;
 		background-color: #ffffff;
 		border-bottom: 1px solid #eee;
+		display: flex;
+		flex-direction: column;
+		gap: 8px;
 	}
 
 	.option-row {
-		display: flex;
-		justify-content: space-between;
-		margin-bottom: 6px;
+		display: grid;
+		grid-template-columns: repeat(2, 1fr);
+		gap: 8px;
 	}
 
 	.option-row:last-child {
@@ -581,13 +666,12 @@
 	}
 
 	.option-item {
-		flex: 1;
 		background-color: #f6f6f6;
 		border-radius: 6px;
-		padding: 8px 10px;
-		margin-right: 6px;
+		padding: 10px 12px;
 		display: flex;
 		flex-direction: column;
+		min-width: 0;
 	}
 
 	.option-item:last-child {
@@ -603,22 +687,33 @@
 	.option-value {
 		font-size: 14px;
 		color: #333;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
 	}
 
 	.option-item.readonly {
 		background-color: #fff8e6;
 	}
 
+	.option-item.disabled {
+		opacity: 0.5;
+		background-color: #e0e0e0;
+	}
+
 	.option-value.base-url {
-		font-size: 12px;
+		font-size: 11px;
 		color: #ad8b00;
 		word-break: break-all;
+		white-space: normal;
 	}
 
 	.page-title {
+		flex: 1;
 		font-size: 16px;
 		font-weight: bold;
 		color: #333;
+		text-align: center;
 	}
 
 	.back-btn,
@@ -674,15 +769,17 @@
 	}
 
 	.message-content {
-		max-width: 70%;
+		max-width: 85%;
+		width: 100%;
 	}
 
 	.message-bubble {
 		background-color: #fff;
 		border-radius: 8px;
-		padding: 10px;
+		padding: 12px;
 		margin-bottom: 10px;
 		box-shadow: 0 2px 6px rgba(0, 0, 0, 0.03);
+		word-wrap: break-word;
 	}
 
 	.system-message .message-bubble {
@@ -710,8 +807,10 @@
 	.suggestion-card {
 		background-color: #f8f8f8;
 		border-radius: 8px;
-		padding: 10px;
+		padding: 12px;
 		margin-bottom: 10px;
+		width: 100%;
+		box-sizing: border-box;
 	}
 
 	.card-header {
@@ -804,17 +903,19 @@
 	.input-area {
 		display: flex;
 		align-items: flex-end;
-		padding: 10px;
+		padding: 12px;
 		background-color: #fff;
 		border-top: 1px solid #eee;
+		box-sizing: border-box;
 	}
 
 	.input-container {
 		flex: 1;
 		background-color: #f0f0f0;
-		border-radius: 5px;
-		padding: 8px;
+		border-radius: 8px;
+		padding: 10px;
 		margin-right: 10px;
+		min-width: 0;
 	}
 
 	.description-input {
@@ -825,6 +926,7 @@
 		line-height: 20px;
 		color: #333;
 		padding: 5px 0;
+		box-sizing: border-box;
 	}
 
 	.char-count {

@@ -2,7 +2,10 @@
 	<view class="page-container">
 		<!-- 顶部导航栏 -->
 		<view class="nav-bar">
-			<view class="nav-title">❤️ 收藏页面</view>
+			<button class="back-btn" @click="goBack">
+				<uni-icons type="arrowleft" size="24" color="#333"></uni-icons>
+			</button>
+			<view class="nav-title">我的收藏</view>
 			<view class="nav-edit" @click="toggleEditMode">
 				<uni-icons type="compose" size="20" color="#333"></uni-icons>
 			</view>
@@ -24,7 +27,7 @@
 					src="https://ai-public.mastergo.com/ai/img_res/aae7c630a469d167b534dbe4c3fa9c0a.jpg"
 					mode="aspectFit" />
 				<view class="empty-text">暂无收藏内容，快去生成页发现你喜欢的名字吧！</view>
-				<button class="empty-button" type="primary">去生成名字</button>
+				<button class="empty-button" type="primary" @click="goToGenerate">去生成名字</button>
 			</view>
 
 			<!-- 收藏列表 -->
@@ -67,6 +70,7 @@
 <script lang="ts" setup>
 	import { ref, computed } from 'vue';
 	import { onLoad } from '@dcloudio/uni-app';
+	import uniIcons from '@/uni_modules/uni-icons/components/uni-icons/uni-icons.vue';
 
 	// 标签数据
 	const tags = ref([
@@ -216,6 +220,16 @@
 		}
 	};
 
+	const goBack = () => {
+		uni.navigateBack();
+	};
+
+	const goToGenerate = () => {
+		uni.navigateTo({
+			url: '/pages/Generate/Generate'
+		});
+	};
+
 	onLoad(() => {
 		loadFavorites();
 	});
@@ -235,25 +249,37 @@
 
 	.nav-bar {
 		display: flex;
-		justify-content: center;
+		justify-content: space-between;
 		align-items: center;
-		height: 88rpx;
+		height: 44px;
 		background-color: #fff;
-		position: relative;
 		box-shadow: 0 2rpx 6rpx rgba(0, 0, 0, 0.05);
+		padding: 0 10px;
+		flex-shrink: 0;
+	}
+
+	.back-btn {
+		width: 30px;
+		height: 30px;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		border: none;
+		background: none;
+		padding: 0;
 	}
 
 	.nav-title {
-		font-size: 18px;
-		font-weight: 500;
+		flex: 1;
+		font-size: 16px;
+		font-weight: bold;
 		color: #333;
+		text-align: center;
 	}
 
 	.nav-edit {
-		position: absolute;
-		right: 32rpx;
-		width: 40rpx;
-		height: 40rpx;
+		width: 30px;
+		height: 30px;
 		display: flex;
 		justify-content: center;
 		align-items: center;
@@ -308,7 +334,14 @@
 	}
 
 	.empty-button {
-		width: 240rpx;
+		width: 320rpx;
+		height: 80rpx;
+		line-height: 80rpx;
+		font-size: 32rpx;
+		border-radius: 40rpx;
+		background-color: #4a90e2;
+		color: white;
+		border: none;
 	}
 
 	.favorites-grid {

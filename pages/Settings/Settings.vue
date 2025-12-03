@@ -1,7 +1,13 @@
 <template>
 	<view class="settings-container">
-		<!-- 导航栏 -->
-		<uni-nav-bar left-icon="left" title="设置" fixed @clickLeft="handleBack" />
+		<!-- 顶部导航栏 -->
+		<view class="nav-bar">
+			<button class="back-btn" @click="handleBack">
+				<uni-icons type="arrowleft" size="24" color="#333"></uni-icons>
+			</button>
+			<text class="page-title">设置</text>
+			<view class="placeholder"></view>
+		</view>
 
 		<!-- 用户信息区域 -->
 		<view class="user-section">
@@ -58,7 +64,7 @@
 			</view>
 			<view class="settings-item">
 				<text class="item-label">自动复制结果</text>
-				<switch :checked="settings.autoCopy" @change="handleAutoCopyChange" color="#4cd964" />
+				<switch :checked="settings.autoCopy" @change="handleAutoCopyChange" color="#4a90e2" />
 			</view>
 		</view>
 
@@ -77,7 +83,7 @@
 			<view class="settings-item">
 				<text class="item-label">字体大小</text>
 				<slider :value="fontSizeIndex" :min="0" :max="2" @change="handleFontSizeChange" :step="1"
-					activeColor="#4cd964" />
+					activeColor="#4a90e2" />
 				<view class="slider-labels">
 					<text>小</text>
 					<text>中</text>
@@ -86,7 +92,7 @@
 			</view>
 			<view class="settings-item">
 				<text class="item-label">动画效果</text>
-				<switch :checked="settings.animation" @change="handleAnimationChange" color="#4cd964" />
+				<switch :checked="settings.animation" @change="handleAnimationChange" color="#4a90e2" />
 			</view>
 		</view>
 
@@ -104,7 +110,7 @@
 			</view>
 			<view class="settings-item">
 				<text class="item-label">自动清理设置</text>
-				<switch :checked="settings.autoClean" @change="handleAutoCleanChange" color="#4cd964" />
+				<switch :checked="settings.autoClean" @change="handleAutoCleanChange" color="#4a90e2" />
 			</view>
 			<view class="settings-item">
 				<text class="item-label">数据备份与恢复</text>
@@ -117,7 +123,7 @@
 			<text class="group-title">账户与数据</text>
 			<view class="settings-item">
 				<text class="item-label">云端同步</text>
-				<switch :checked="settings.cloudSync" @change="handleCloudSyncChange" color="#4cd964" />
+				<switch :checked="settings.cloudSync" @change="handleCloudSyncChange" color="#4a90e2" />
 			</view>
 			<view class="settings-item">
 				<text class="item-label">数据统计</text>
@@ -166,6 +172,9 @@
 		getApiBaseUrl
 	} from '../../common/api';
 	import { applyTheme, getStoredTheme, ThemeKey } from '../../common/theme';
+	import uniIcons from '@/uni_modules/uni-icons/components/uni-icons/uni-icons.vue';
+	import uniNumberBox from '@/uni_modules/uni-number-box/components/uni-number-box/uni-number-box.vue';
+	import uniSegmentedControl from '@/uni_modules/uni-segmented-control/components/uni-segmented-control/uni-segmented-control.vue';
 
 	const isLogin = ref(false);
 	const userInfo = reactive({
@@ -414,6 +423,40 @@
 		padding-bottom: 40rpx;
 	}
 
+	.nav-bar {
+		height: 44px;
+		background-color: #ffffff;
+		border-bottom: 1px solid #eee;
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		padding: 0 10px;
+		flex-shrink: 0;
+	}
+
+	.back-btn {
+		width: 30px;
+		height: 30px;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		border: none;
+		background: none;
+		padding: 0;
+	}
+
+	.page-title {
+		flex: 1;
+		font-size: 16px;
+		font-weight: bold;
+		color: #333;
+		text-align: center;
+	}
+
+	.placeholder {
+		width: 30px;
+	}
+
 	.user-section {
 		display: flex;
 		flex-direction: column;
@@ -455,7 +498,7 @@
 
 	.login-text {
 		font-size: 36rpx;
-		color: #4cd964;
+		color: #4a90e2;
 		font-weight: bold;
 	}
 
@@ -546,8 +589,8 @@
 	.stats-btn,
 	.clear-btn,
 	.config-btn {
-		border: 1rpx solid #4cd964;
-		color: #4cd964;
+		border: 1rpx solid #4a90e2;
+		color: #4a90e2;
 		background-color: transparent;
 		border-radius: 40rpx;
 		padding: 0 24rpx;
@@ -564,7 +607,7 @@
 	.stats-btn:active,
 	.clear-btn:active,
 	.config-btn:active {
-		background-color: rgba(76, 217, 100, 0.1);
+		background-color: rgba(74, 144, 226, 0.1);
 	}
 
 	.config-btn.danger:active {

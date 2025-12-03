@@ -1,5 +1,14 @@
 <template>
 	<view class="history-page">
+		<!-- 顶部导航栏 -->
+		<view class="nav-bar">
+			<button class="back-btn" @click="goBack">
+				<uni-icons type="arrowleft" size="24" color="#333"></uni-icons>
+			</button>
+			<text class="page-title">历史记录</text>
+			<view class="placeholder"></view>
+		</view>
+
 		<!-- 顶部筛选栏 -->
 		<view class="filter-bar">
 			<view class="search-box">
@@ -30,8 +39,8 @@
 				<image class="empty-image"
 					src="https://ai-public.mastergo.com/ai/img_res/adc2c67b429ff3c75b0aad8484dc1139.jpg"
 					mode="aspectFit" />
-				<text class="empty-text">暂无历史记录</text>
-				<button class="empty-btn" @click="goToGenerate">去生成姓名</button>
+				<view class="empty-text">暂无历史记录，快去生成页创造属于你的名字吧！</view>
+				<button class="empty-btn" type="primary" @click="goToGenerate">去生成名字</button>
 			</view>
 
 			<!-- 分组列表 -->
@@ -52,10 +61,11 @@
 					</view>
 
 					<!-- 展开内容 -->
-					<view class="expanded-content" v-if="item.expanded" v-for="(item, i) in group.items"
-						:key="'expanded-'+i">
-						<view class="name-item" v-for="(name, n) in item.names" :key="n">
-							<text>{{ name }}</text>
+					<view v-for="(historyItem, itemIdx) in group.items" :key="'expanded-'+itemIdx">
+						<view class="expanded-content" v-if="historyItem.expanded">
+							<view class="name-item" v-for="(name, n) in historyItem.names" :key="n">
+								<text>{{ name }}</text>
+							</view>
 						</view>
 					</view>
 				</view>
@@ -73,6 +83,7 @@
 	import { ref, computed, onMounted } from 'vue';
 	import { onLoad } from '@dcloudio/uni-app';
 	import { getHistoryList } from '../../common/api';
+	import uniIcons from '@/uni_modules/uni-icons/components/uni-icons/uni-icons.vue';
 
 	// 筛选选项
 	const timeRange = ref([
@@ -135,9 +146,13 @@
 	const getSystemInfo = () => {
 		uni.getSystemInfo({
 			success: (res) => {
-				const query = uni.createSelectorQuery().in(this);
+				const query = uni.createSelectorQuery();
 				query.select('.filter-bar').boundingClientRect(data => {
-					scrollHeight.value = res.windowHeight - data.height;
+					if (data) {
+						scrollHeight.value = res.windowHeight - data.height - 44; // 减去导航栏高度
+					} else {
+						scrollHeight.value = res.windowHeight - 100; // 默认值
+					}
 				}).exec();
 			}
 		});
@@ -223,6 +238,10 @@
 			url: '/pages/Generate/Generate'
 		});
 	};
+
+	const goBack = () => {
+		uni.navigateBack();
+	};
 </script>
 
 <style>
@@ -235,6 +254,40 @@
 		display: flex;
 		flex-direction: column;
 		height: 100%;
+	}
+
+	.nav-bar {
+		height: 44px;
+		background-color: #ffffff;
+		border-bottom: 1px solid #eee;
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		padding: 0 10px;
+		flex-shrink: 0;
+	}
+
+	.back-btn {
+		width: 30px;
+		height: 30px;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		border: none;
+		background: none;
+		padding: 0;
+	}
+
+	.page-title {
+		flex: 1;
+		font-size: 16px;
+		font-weight: bold;
+		color: #333;
+		text-align: center;
+	}
+
+	.placeholder {
+		width: 30px;
 	}
 
 	/* 筛选栏 */
@@ -371,19 +424,23 @@
 	}
 
 	.empty-text {
-		font-size: 30rpx;
+		font-size: 28rpx;
 		color: #999;
-		margin-bottom: 40rpx;
+		margin-bottom: 32rpx;
+		text-align: center;
+		padding: 0 40rpx;
+		line-height: 1.6;
 	}
 
 	.empty-btn {
-		width: 300rpx;
+		width: 320rpx;
 		height: 80rpx;
 		line-height: 80rpx;
-		font-size: 28rpx;
-		color: #fff;
-		background-color: #2979ff;
+		font-size: 32rpx;
+		color: white;
+		background-color: #4a90e2;
 		border-radius: 40rpx;
+		border: none;
 		margin: 0;
 	}
 

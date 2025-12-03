@@ -174,3 +174,37 @@ export const getHistoryList = (params: { page?: number; page_size?: number; q?: 
 		method: 'GET',
 	});
 };
+
+// -------- Models --------
+export interface ModelInfo {
+	id: string;
+	name: string;
+	description: string;
+	is_default: boolean;
+}
+
+export interface ModelsResponse {
+	success: boolean;
+	models?: Record<string, ModelInfo[]>;  // 所有平台的模型
+	platforms?: string[];  // 平台列表
+	total_count?: number;  // 模型总数
+	api?: string;  // 单个平台查询时返回
+	count?: number;  // 单个平台模型数量
+	error?: string;
+}
+
+export const getModels = (params?: { api?: string; refresh?: boolean }): Promise<ModelsResponse> => {
+	const queryParams = new URLSearchParams();
+	if (params?.api) {
+		queryParams.append('api', params.api);
+	}
+	if (params?.refresh) {
+		queryParams.append('refresh', 'true');
+	}
+	const queryString = queryParams.toString();
+	const url = `/models${queryString ? '?' + queryString : ''}`;
+	return request<ModelsResponse>({
+		url,
+		method: 'GET',
+	});
+};

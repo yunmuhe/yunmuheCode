@@ -52,12 +52,14 @@
 	</view>
 </template>
 <script lang="ts" setup>
-import { ref } from 'vue';
+import { ref, onMounted } from 'vue';
+import { getHistoryList, getFavorites } from '../../common/api';
+
 const isLoggedIn = ref(true);
 const stats = ref({
-	generated: 128,
-	favorites: 24,
-	today: 5
+	generated: 0,
+	favorites: 0,
+	today: 0
 });
 const examples = ref([
 	{ text: '古代文人雅士', category: 'ancient' },
@@ -66,16 +68,62 @@ const examples = ref([
 	{ text: '科幻星际战士', category: 'sci-fi' },
 	{ text: '武侠江湖侠客', category: 'martial' }
 ]);
+
+// 加载统计数据
+const loadStats = async () => {
+	try {
+		// 获取历史记录总数
+		const historyRes = await getHistoryList({ page: 1, page_size: 1 });
+		if (historyRes.success) {
+			stats.value.generated = historyRes.total || 0;
+
+			// 计算今日生成数量
+			const today = new Date();
+			today.setHours(0, 0, 0, 0);
+			const todayTimestamp = today.getTime();
+
+			// 获取所有历史记录来计算今日数量
+			const allHistoryRes = await getHistoryList({ page: 1, page_size: 100 });
+			if (allHistoryRes.success && allHistoryRes.items) {
+				const todayCount = allHistoryRes.items.filter((item: any) => {
+					const itemTime = new Date(item.time).getTime();
+					return itemTime >= todayTimestamp;
+				}).length;
+				stats.value.today = todayCount;
+			}
+		}
+
+		// 获取收藏数量
+		const favoritesRes = await getFavorites();
+		if (favoritesRes.success) {
+			stats.value.favorites = favoritesRes.items?.length || 0;
+		}
+	} catch (error) {
+		console.error('加载统计数据失败:', error);
+		// 失败时保持默认值0
+	}
+};
+
+onMounted(() => {
+	loadStats();
+});
+
 const navigateTo = (page: string) => {
-	if (page === 'generate') {
-		uni.navigateTo({ url: '/pages/generate/generate' });
-	} else {
-		uni.navigateTo({ url: `/pages/${page}/${page}` });
+	const pageMap: Record<string, string> = {
+		'generate': '/pages/Generate/Generate',
+		'history': '/pages/History/History',
+		'favorites': '/pages/Favorites/Favorites',
+		'settings': '/pages/Settings/Settings'
+	};
+
+	const url = pageMap[page];
+	if (url) {
+		uni.navigateTo({ url });
 	}
 };
 const fillExample = (example: { text: string }) => {
 	uni.navigateTo({
-		url: `/pages/generate/generate?preset=${encodeURIComponent(example.text)}`
+		url: `/pages/Generate/Generate?preset=${encodeURIComponent(example.text)}`
 	});
 };
 </script>
@@ -118,14 +166,13 @@ page {
 }
 
 .grid-container {
-	display: flex;
-	flex-wrap: wrap;
-	justify-content: space-between;
+	display: grid;
+	grid-template-columns: repeat(2, 1fr);
+	gap: 30rpx;
 	margin-bottom: 50rpx;
 }
 
 .grid-item {
-	width: 48%;
 	background: white;
 	border-radius: 20rpx;
 	padding: 40rpx 20rpx;
@@ -133,7 +180,15 @@ page {
 	flex-direction: column;
 	align-items: center;
 	box-shadow: 0 10rpx 20rpx rgba(0, 0, 0, 0.05);
-	margin-bottom: 30rpx;
+	aspect-ratio: 1;
+	justify-content: center;
+	transition: all 0.3s ease;
+	cursor: pointer;
+}
+
+.grid-item:active {
+	transform: scale(0.95);
+	box-shadow: 0 5rpx 10rpx rgba(0, 0, 0, 0.1);
 }
 
 .icon {
