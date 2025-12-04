@@ -80,6 +80,9 @@ desktop.ini
 test_*.json
 .hypothesis/
 .pytest_cache/
+test_output/
+coverage.xml
+.coverage
 
 # Temporary files
 *.tmp
@@ -88,6 +91,10 @@ test_*.json
 *.swp
 *~
 .~*
+*.puml
+project_structure.txt
+temp/
+tmp/
 
 # Database (忽略所有数据库文件，包括生成的names_corpus.db)
 *.db
@@ -108,11 +115,14 @@ natapp/
 natapp.exe
 config.ini
 
-# 测试和调试脚本
+# 测试和调试脚本（临时文件）
+# 注意：tests/ 目录下的正式测试文件（test_*.py）会被保留
 test_*.bat
-test_*.py
 fix_*.bat
 download_*.bat
+test_connection.bat
+debug_*.py
+temp_*.py
 
 # Node modules (for frontend)
 node_modules/

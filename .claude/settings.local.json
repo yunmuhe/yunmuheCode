@@ -15,7 +15,8 @@
       "Bash(cat:*)",
       "Bash(git log:*)",
       "Bash(git fsck:*)",
-      "Bash(git check-ignore:*)"
+      "Bash(git check-ignore:*)",
+      "Bash(curl:*)"
     ],
     "deny": [],
     "ask": []
