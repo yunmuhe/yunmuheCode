@@ -5,6 +5,7 @@
 import os
 import random
 import sqlite3
+import threading
 from typing import List, Dict, Optional, Union
 from pathlib import Path
 
@@ -250,7 +251,8 @@ class CorpusLoader:
                 query += " AND gender = ?"
                 params.append(gender)
 
-            query += f" LIMIT {limit}"
+            query += " LIMIT ?"
+            params.append(int(limit))
 
             cursor.execute(query, params)
             return [{'name': row['name'], 'gender': row['gender']} for row in cursor.fetchall()]
@@ -279,7 +281,8 @@ class CorpusLoader:
                 query += " WHERE category = ?"
                 params.append(category)
 
-            query += f" ORDER BY RANDOM() LIMIT {count}"
+            query += " ORDER BY RANDOM() LIMIT ?"
+            params.append(int(count))
 
             cursor.execute(query, params)
 
@@ -402,7 +405,15 @@ class CorpusLoader:
         finally:
             conn.close()
     
+    _ALLOWED_TABLES = frozenset([
+        'chinese_names', 'ancient_names', 'family_names',
+        'idioms', 'japanese_names', 'english_names', 'relationships',
+        'themed_names',
+    ])
+
     def _has_column(self, table: str, column: str) -> bool:
+        if table not in self._ALLOWED_TABLES:
+            return False
         conn = self._get_connection()
         cursor = conn.cursor()
         try:
@@ -481,11 +492,14 @@ class CorpusLoader:
 
 # 全局单例
 _corpus_loader = None
+_corpus_loader_lock = threading.Lock()
 
 
 def get_corpus_loader(db_path: str = None) -> CorpusLoader:
-    """获取全局语料库加载器实例"""
+    """获取全局语料库加载器实例（线程安全）"""
     global _corpus_loader
     if _corpus_loader is None:
-        _corpus_loader = CorpusLoader(db_path)
+        with _corpus_loader_lock:
+            if _corpus_loader is None:
+                _corpus_loader = CorpusLoader(db_path)
     return _corpus_loader
