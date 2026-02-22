@@ -6,16 +6,7 @@ from typing import Dict, Any, Optional, List
 import requests
 import json
 import time
-
-# 延迟导入logger，避免循环导入
-def get_logger(name):
-    """获取日志记录器"""
-    try:
-        from ...utils.logger import get_logger as _get_logger
-        return _get_logger(name)
-    except ImportError:
-        import logging
-        return logging.getLogger(name)
+from ...utils.logging_helper import get_logger
 
 logger = get_logger(__name__)
 
