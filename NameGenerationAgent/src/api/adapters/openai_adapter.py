@@ -202,44 +202,4 @@ class OpenAIAdapter(BaseAPIAdapter):
             logger.exception("详细错误信息:")
             raise APIException(error_msg)
 
-    def _parse_names(self, text: str) -> List[Dict[str, str]]:
-        """解析生成的姓名"""
-        names = []
-        lines = text.strip().split('\n')
-
-        for line in lines:
-            line = line.strip()
-            if not line:
-                continue
-
-            if '：' in line or ':' in line:
-                try:
-                    separator = '：' if '：' in line else ':'
-                    parts = line.split(separator, 1)
-
-                    if len(parts) >= 2:
-                        name_part = parts[0].strip()
-                        meaning_part = parts[1].strip()
-
-                        name = name_part
-                        if name.startswith('姓名'):
-                            name = name[2:].strip()
-
-                        name = name.replace('：', '').replace(':', '').strip()
-
-                        for i in range(10):
-                            if name.startswith(f'{i}.') or name.startswith(f'{i}、'):
-                                name = name[2:].strip()
-                                break
-
-                        if name and len(name) >= 2 and len(name) <= 4:
-                            names.append({
-                                'name': name,
-                                'meaning': meaning_part
-                            })
-                except Exception:
-                    continue
-
-        return names
-
 register_adapter('openai', lambda cfg: OpenAIAdapter(cfg))

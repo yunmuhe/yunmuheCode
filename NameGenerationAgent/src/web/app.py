@@ -158,16 +158,25 @@ def generate_names():
         
         # 获取参数
         description = data.get('description', '').strip()
-        count = int(data.get('count', 5))
         cultural_style = data.get('cultural_style', 'chinese_modern')
         gender = data.get('gender', 'neutral')
         age = data.get('age', 'adult')
         preferred_api = data.get('preferred_api')
         use_cache = data.get('use_cache', True)
         preferred_surname = (data.get('preferred_surname') or '').strip()
-        surname_weight = float(data.get('surname_weight', 1.0) or 1.0)
-        era_weight = float(data.get('era_weight', 1.0) or 1.0)
         preferred_era = (data.get('preferred_era') or '').strip()
+
+        # 解析并验证数值参数
+        try:
+            count = int(data.get('count', 5))
+        except (ValueError, TypeError):
+            return jsonify({'success': False, 'error': 'count 参数必须为整数'}), 400
+
+        try:
+            surname_weight = float(data.get('surname_weight', 1.0) or 1.0)
+            era_weight = float(data.get('era_weight', 1.0) or 1.0)
+        except (ValueError, TypeError):
+            return jsonify({'success': False, 'error': 'surname_weight/era_weight 参数必须为数字'}), 400
         
         # 验证参数
         if not description:
@@ -387,8 +396,11 @@ def get_history():
 def get_history_list():
     """分页获取生成历史列表"""
     try:
-        page = int(request.args.get('page', 1))
-        page_size = int(request.args.get('page_size', 10))
+        try:
+            page = int(request.args.get('page', 1))
+            page_size = int(request.args.get('page_size', 10))
+        except (ValueError, TypeError):
+            return jsonify({'success': False, 'error': 'page/page_size 参数必须为整数'}), 400
         q = (request.args.get('q') or '').strip()
 
         history = session.get('history', [])

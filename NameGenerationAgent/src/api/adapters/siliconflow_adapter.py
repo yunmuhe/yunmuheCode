@@ -107,47 +107,5 @@ class SiliconFlowAdapter(BaseAPIAdapter):
         except Exception as e:
             logger.error(f"硅基流动API调用失败: {str(e)}")
             raise APIException(f"硅基流动API调用失败: {str(e)}")
-    
-    def _parse_names(self, text: str) -> List[Dict[str, str]]:
-        """解析生成的姓名"""
-        names = []
-        lines = text.strip().split('\n')
-        
-        for line in lines:
-            line = line.strip()
-            if not line:
-                continue
-                
-            # 解析格式：姓名：{name} - {meaning}
-            if '：' in line or ':' in line:
-                try:
-                    # 处理中文冒号和英文冒号
-                    separator = '：' if '：' in line else ':'
-                    parts = line.split(separator, 1)
-                    
-                    if len(parts) >= 2:
-                        name_part = parts[0].strip()
-                        meaning_part = parts[1].strip()
-                        
-                        # 提取姓名（去掉序号）
-                        name = name_part
-                        if name.startswith('姓名'):
-                            name = name[2:].strip()
-                        
-                        # 清理姓名
-                        name = name.replace('：', '').replace(':', '').strip()
-                        
-                        if name and meaning_part:
-                            names.append({
-                                'name': name,
-                                'meaning': meaning_part,
-                                'source': 'siliconflow'
-                            })
-                
-                except Exception as e:
-                    logger.warning(f"解析姓名行失败: {line}, 错误: {str(e)}")
-                    continue
-        
-        return names
 
 register_adapter('siliconflow', lambda cfg: SiliconFlowAdapter(cfg))
