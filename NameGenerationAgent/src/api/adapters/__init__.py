@@ -1,20 +1,11 @@
 from typing import Dict, Callable
+from ...utils.logging_helper import get_logger
 
 ADAPTER_BUILDERS: Dict[str, Callable] = {}
+logger = get_logger(__name__)
 
 def register_adapter(name: str, builder: Callable) -> None:
     ADAPTER_BUILDERS[name] = builder
-
-def get_logger():
-    """获取日志记录器"""
-    try:
-        from ...utils.logger import get_logger as _get_logger
-        return _get_logger(__name__)
-    except ImportError:
-        import logging
-        return logging.getLogger(__name__)
-
-logger = get_logger()
 
 def ensure_adapters_imported() -> None:
     try:

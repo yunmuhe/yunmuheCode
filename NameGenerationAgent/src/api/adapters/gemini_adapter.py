@@ -6,15 +6,7 @@ from typing import Dict, Any, List
 import requests
 from .base_adapter import BaseAPIAdapter, APIException
 from . import register_adapter
-
-def get_logger(name):
-    """获取日志记录器"""
-    try:
-        from ...utils.logger import get_logger as _get_logger
-        return _get_logger(name)
-    except ImportError:
-        import logging
-        return logging.getLogger(name)
+from ...utils.logging_helper import get_logger
 
 logger = get_logger(__name__)
 
