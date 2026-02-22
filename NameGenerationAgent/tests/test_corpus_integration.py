@@ -37,11 +37,14 @@ class TestCorpusIntegration(unittest.TestCase):
             'gender': 'male',
             'cultural_style': 'chinese_traditional'
         }
-        
+
         # 如果语料库增强器存在，测试提示词增强
         if self.generator.corpus_enhancer:
+            base_prompt = "请生成一个勇敢的战士的名字"
             enhanced_prompt = self.generator.corpus_enhancer.enhance_prompt(
-                description, options
+                base_prompt=base_prompt,
+                description=description,
+                options=options
             )
             self.assertIsInstance(enhanced_prompt, str)
             self.assertGreater(len(enhanced_prompt), 0)

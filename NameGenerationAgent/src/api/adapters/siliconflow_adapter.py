@@ -5,20 +5,71 @@ from typing import Dict, Any, List
 import json
 from .base_adapter import BaseAPIAdapter, APIException
 from ...utils.logger import get_logger
+from . import register_adapter
 
 logger = get_logger(__name__)
 
 class SiliconFlowAdapter(BaseAPIAdapter):
     """硅基流动API适配器"""
-    
+
+    def list_models(self) -> List[Dict[str, Any]]:
+        """
+        获取硅基流动可用的模型列表
+
+        Returns:
+            List[Dict]: 模型列表
+        """
+        if not self.is_available():
+            return []
+
+        try:
+            response = self._make_request("models", {}, method='GET', timeout=10)
+
+            models = []
+            for model_data in response.get('data', []):
+                model_id = model_data.get('id', '')
+                # 过滤出聊天模型
+                if 'chat' in model_data.get('object', '').lower() or \
+                   any(keyword in model_id.lower() for keyword in ['qwen', 'llama', 'deepseek', 'yi', 'mistral', 'glm']):
+                    models.append({
+                        'id': model_id,
+                        'name': model_id.split('/')[-1] if '/' in model_id else model_id,
+                        'description': f'硅基流动 {model_id}',
+                        'is_default': model_id == self.config.model,
+                        'owned_by': model_data.get('owned_by', 'siliconflow')
+                    })
+
+            if not models:
+                return self._get_default_models()
+
+            return models
+
+        except Exception as e:
+            logger.warning(f"获取硅基流动模型列表异常: {str(e)}")
+            return self._get_default_models()
+
+    def _get_default_models(self) -> List[Dict[str, Any]]:
+        """返回默认的硅基流动模型列表"""
+        default_models = [
+            {'id': 'Qwen/Qwen2.5-7B-Instruct', 'name': 'Qwen2.5-7B-Instruct', 'description': '通义千问2.5 7B指令模型', 'is_default': True},
+            {'id': 'Qwen/Qwen2.5-14B-Instruct', 'name': 'Qwen2.5-14B-Instruct', 'description': '通义千问2.5 14B指令模型'},
+            {'id': 'Qwen/Qwen2.5-32B-Instruct', 'name': 'Qwen2.5-32B-Instruct', 'description': '通义千问2.5 32B指令模型'},
+            {'id': 'deepseek-ai/DeepSeek-V2.5', 'name': 'DeepSeek-V2.5', 'description': 'DeepSeek V2.5模型'},
+            {'id': 'meta-llama/Meta-Llama-3.1-8B-Instruct', 'name': 'Llama-3.1-8B', 'description': 'Meta Llama 3.1 8B指令模型'},
+        ]
+        return default_models
+
     def generate_names(self, prompt: str, **kwargs) -> Dict[str, Any]:
-        """生成姓名"""
+        """生成姓名（支持动态指定模型）"""
         if not self.is_available():
             raise APIException("硅基流动API未配置或不可用")
-        
+
+        # 支持动态指定模型
+        model = kwargs.get('model', self.config.model)
+
         # 构建请求数据
         data = {
-            "model": self.config.model,
+            "model": model,
             "messages": [
                 {
                     "role": "system",
@@ -34,25 +85,25 @@ class SiliconFlowAdapter(BaseAPIAdapter):
             "top_p": kwargs.get('top_p', 0.9),
             "stream": False
         }
-        
+
         try:
             response = self._make_request("chat/completions", data)
-            
+
             # 解析响应
             if 'choices' in response and len(response['choices']) > 0:
                 generated_text = response['choices'][0]['message']['content']
                 names = self._parse_names(generated_text)
-                
+
                 return {
                     'success': True,
                     'names': names,
                     'raw_response': generated_text,
                     'api_name': self.name,
-                    'model': self.config.model
+                    'model': model
                 }
             else:
                 raise APIException("硅基流动API响应格式错误")
-                
+
         except Exception as e:
             logger.error(f"硅基流动API调用失败: {str(e)}")
             raise APIException(f"硅基流动API调用失败: {str(e)}")
@@ -98,3 +149,5 @@ class SiliconFlowAdapter(BaseAPIAdapter):
                     continue
         
         return names
+
+register_adapter('siliconflow', lambda cfg: SiliconFlowAdapter(cfg))

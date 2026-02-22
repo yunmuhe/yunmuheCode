@@ -4,6 +4,7 @@
 from typing import Dict, Any, List
 import json
 from .base_adapter import BaseAPIAdapter, APIException
+from . import register_adapter
 
 # 延迟导入logger，避免循环导入
 def get_logger(name):
@@ -19,7 +20,34 @@ logger = get_logger(__name__)
 
 class PaiouAdapter(BaseAPIAdapter):
     """派欧云API适配器"""
-    
+
+    def list_models(self) -> List[Dict[str, Any]]:
+        """
+        获取派欧云可用的模型列表
+
+        Returns:
+            List[Dict]: 模型列表
+        """
+        if not self.is_available():
+            return []
+
+        # 派欧云使用OpenAI兼容API，返回预定义模型列表
+        return self._get_default_models()
+
+    def _get_default_models(self) -> List[Dict[str, Any]]:
+        """返回默认的派欧云模型列表"""
+        default_models = [
+            {'id': 'qwen3:235b', 'name': 'Qwen3 235B', 'description': '派欧云通义千问3代235B模型', 'is_default': True},
+            {'id': 'qwen2.5:72b', 'name': 'Qwen2.5 72B', 'description': '派欧云通义千问2.5 72B模型', 'is_default': False},
+            {'id': 'qwen2.5:32b', 'name': 'Qwen2.5 32B', 'description': '派欧云通义千问2.5 32B模型', 'is_default': False},
+            {'id': 'deepseek-v3', 'name': 'DeepSeek V3', 'description': '派欧云DeepSeek V3模型', 'is_default': False},
+        ]
+        # 标记当前配置的模型为默认
+        current_model = getattr(self.config, 'model', 'qwen3:235b')
+        for model in default_models:
+            model['is_default'] = (model['id'] == current_model)
+        return default_models
+
     def generate_names(self, prompt: str, **kwargs) -> Dict[str, Any]:
         """生成姓名"""
         if not self.is_available():
@@ -205,3 +233,5 @@ class PaiouAdapter(BaseAPIAdapter):
                     })
         
         return names
+
+register_adapter('paiou', lambda cfg: PaiouAdapter(cfg))

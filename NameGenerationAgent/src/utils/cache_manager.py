@@ -5,7 +5,7 @@ import json
 import os
 import time
 from typing import Any, Optional, Dict
-from ..config.settings import Config
+from config.settings import Config
 from .logger import get_logger
 
 logger = get_logger(__name__)

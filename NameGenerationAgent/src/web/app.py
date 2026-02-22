@@ -1,7 +1,7 @@
 """
 Flask Web应用主文件
 """
-from flask import Flask, render_template, request, jsonify, session
+from flask import Flask, request, jsonify, session
 from flask_cors import CORS
 import os
 import sys
@@ -132,8 +132,23 @@ else:
 
 @app.route('/')
 def index():
-    """首页"""
-    return render_template('index.html')
+    """API首页 - 返回系统信息"""
+    return jsonify({
+        'name': '智能姓名生成系统 API',
+        'version': '1.0.0',
+        'status': 'running',
+        'endpoints': {
+            'health': '/health',
+            'options': '/options',
+            'models': '/models',
+            'generate': '/generate',
+            'stats': '/stats',
+            'history': '/history/list',
+            'favorites': '/favorites'
+        },
+        'frontend': 'uni-app (智能姓名生成系统)',
+        'description': '基于多平台AI的智能中文姓名生成API'
+    })
 
 @app.route('/generate', methods=['POST'])
 def generate_names():
@@ -149,6 +164,10 @@ def generate_names():
         age = data.get('age', 'adult')
         preferred_api = data.get('preferred_api')
         use_cache = data.get('use_cache', True)
+        preferred_surname = (data.get('preferred_surname') or '').strip()
+        surname_weight = float(data.get('surname_weight', 1.0) or 1.0)
+        era_weight = float(data.get('era_weight', 1.0) or 1.0)
+        preferred_era = (data.get('preferred_era') or '').strip()
         
         # 验证参数
         if not description:
@@ -173,7 +192,11 @@ def generate_names():
                 gender=gender,
                 age=age,
                 preferred_api=preferred_api,
-                use_cache=use_cache
+                use_cache=use_cache,
+                preferred_surname=preferred_surname,
+                surname_weight=surname_weight,
+                era_weight=era_weight,
+                preferred_era=preferred_era
             )
         else:
             # 使用模拟数据
@@ -240,7 +263,7 @@ def get_options():
                 'ages': ['child', 'teen', 'adult', 'elder'],
                 'apis': ['mock']
             }
-        
+
         return jsonify({
             'success': True,
             'options': options
@@ -251,6 +274,69 @@ def get_options():
         return jsonify({
             'success': False,
             'error': f'获取选项失败: {str(e)}'
+        }), 500
+
+@app.route('/models', methods=['GET'])
+def get_models():
+    """获取所有可用平台的模型列表"""
+    try:
+        # 获取查询参数
+        api_name = request.args.get('api')  # 可选：只获取特定平台的模型
+        refresh = request.args.get('refresh', 'false').lower() == 'true'  # 是否强制刷新缓存
+
+        # 导入模型管理器和统一客户端
+        from src.api.model_manager import model_manager
+        from src.api.unified_client import unified_client
+
+        # 如果需要刷新缓存
+        if refresh:
+            model_manager.clear_cache(api_name)
+
+        # 获取模型列表
+        if api_name:
+            # 获取特定平台的模型
+            adapter = unified_client.adapters.get(api_name)
+            if not adapter:
+                return jsonify({
+                    'success': False,
+                    'error': f'未找到API平台: {api_name}'
+                }), 404
+
+            if not adapter.is_available():
+                return jsonify({
+                    'success': False,
+                    'error': f'API平台未启用: {api_name}'
+                }), 400
+
+            models = model_manager.get_models_for_api(api_name, adapter)
+            return jsonify({
+                'success': True,
+                'api': api_name,
+                'models': models,
+                'count': len(models)
+            })
+        else:
+            # 获取所有平台的模型
+            all_models = model_manager.get_all_models(unified_client.adapters)
+
+            # 统计信息
+            total_count = sum(len(models) for models in all_models.values())
+
+            return jsonify({
+                'success': True,
+                'models': all_models,
+                'platforms': list(all_models.keys()),
+                'total_count': total_count
+            })
+
+    except Exception as e:
+        logger = get_logger()
+        logger.error(f"获取模型列表失败: {str(e)}")
+        import traceback
+        logger.error(traceback.format_exc())
+        return jsonify({
+            'success': False,
+            'error': f'获取模型列表失败: {str(e)}'
         }), 500
 
 @app.route('/stats')
@@ -389,14 +475,24 @@ def health_check():
 @app.errorhandler(404)
 def not_found(error):
     """404错误处理"""
-    return render_template('404.html'), 404
+    return jsonify({
+        'success': False,
+        'error': 'Not Found',
+        'message': '请求的资源不存在',
+        'status': 404
+    }), 404
 
 @app.errorhandler(500)
 def internal_error(error):
     """500错误处理"""
     logger = get_logger()
     logger.error(f"内部服务器错误: {str(error)}")
-    return render_template('500.html'), 500
+    return jsonify({
+        'success': False,
+        'error': 'Internal Server Error',
+        'message': '服务器内部错误',
+        'status': 500
+    }), 500
 
 if __name__ == '__main__':
     logger = get_logger()
