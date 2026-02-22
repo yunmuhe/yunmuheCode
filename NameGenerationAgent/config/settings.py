@@ -32,6 +32,10 @@ class Config:
     MAX_RETRIES = 3  # 最大重试次数
     RETRY_DELAY = 1  # 重试延迟（秒）
     
+    # 路由策略
+    ROUTER_STRATEGY = os.environ.get('ROUTER_STRATEGY', 'priority').lower()
+    ROUTER_WEIGHTS = os.environ.get('ROUTER_WEIGHTS', '')
+    
     # 姓名生成配置
     DEFAULT_NAME_COUNT = 5  # 默认生成姓名数量
     MAX_NAME_COUNT = 20  # 最大生成姓名数量

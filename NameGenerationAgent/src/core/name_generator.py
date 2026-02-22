@@ -142,7 +142,11 @@ class NameGenerator:
                       gender: str = 'neutral', age: str = 'adult',
                       preferred_api: Optional[str] = None,
                       use_cache: bool = True,
-                      use_mock_on_failure: bool = True) -> Dict[str, Any]:
+                      use_mock_on_failure: bool = True,
+                      preferred_surname: Optional[str] = None,
+                      surname_weight: float = 1.0,
+                      era_weight: float = 1.0,
+                      preferred_era: Optional[str] = None) -> Dict[str, Any]:
         """生成姓名"""
         
         try:
@@ -150,22 +154,42 @@ class NameGenerator:
             self._validate_inputs(description, count, cultural_style, gender, age)
             
             # 构建提示词
+            corpus_examples = []
+            if self.corpus_enhancer:
+                try:
+                    keywords = self._extract_keywords(description)
+                    suggestions = self.corpus_enhancer.get_name_suggestions(keywords, gender=gender, count=5)
+                    corpus_examples = [s['name'] for s in suggestions]
+                except Exception:
+                    corpus_examples = []
             prompt = self.prompt_templates.build_prompt(
                 description=description,
                 count=count,
                 cultural_style=cultural_style,
                 gender=gender,
-                age=age
+                age=age,
+                corpus_examples=corpus_examples,
+                enhancement_type='realistic'
             )
-            
-            # 使用语料库增强器增强提示词
+
+            # 使用语料库增强器增强提示词（在基础提示词基础上添加示例）
             if self.corpus_enhancer:
-                options = {
-                    'gender': gender,
-                    'cultural_style': cultural_style
-                }
-                prompt = self.corpus_enhancer.enhance_prompt(description, options)
-            
+                try:
+                    options = {
+                        'gender': gender,
+                        'cultural_style': cultural_style,
+                        'preferred_surname': (preferred_surname or '').strip(),
+                        'preferred_era': (preferred_era or '').strip()
+                    }
+                    prompt = self.corpus_enhancer.enhance_prompt(
+                        base_prompt=prompt,
+                        description=description,
+                        options=options
+                    )
+                except Exception as e:
+                    logger.warning(f"语料库增强失败，使用基础提示词: {str(e)}")
+                    # 如果增强失败，继续使用基础提示词
+
             logger.info(f"开始生成姓名，描述: {description[:50]}...")
             
             # 调用API生成姓名
@@ -189,7 +213,20 @@ class NameGenerator:
                     'names': []
                 }
             
-            # 处理生成结果
+            ranked_names = api_result.get('names', [])
+            if self.corpus_enhancer and ranked_names:
+                try:
+                    rank_options = {
+                        'preferred_surname': (preferred_surname or '').strip(),
+                        'cultural_style': cultural_style,
+                        'surname_weight': surname_weight,
+                        'era_weight': era_weight,
+                        'preferred_era': (preferred_era or '').strip()
+                    }
+                    ranked_names = self.corpus_enhancer.filter_and_rank_names(ranked_names, description, rank_options)
+                    api_result['names'] = ranked_names
+                except Exception:
+                    pass
             result = self._process_generated_names(api_result, description)
             
             logger.info(f"成功生成 {len(result['names'])} 个姓名")
@@ -248,8 +285,9 @@ class NameGenerator:
         
         for i, name_data in enumerate(names):
             try:
-                processed_name = self._process_single_name(name_data, i + 1)
-                processed_names.append(processed_name)
+                if self._is_valid_name_entry(name_data):
+                    processed_name = self._process_single_name(name_data, i + 1)
+                    processed_names.append(processed_name)
             except Exception as e:
                 logger.warning(f"处理第{i+1}个姓名失败: {str(e)}")
                 continue
@@ -323,6 +361,33 @@ class NameGenerator:
             features['stroke_count'] = self._estimate_stroke_count(name)
         
         return features
+
+    def _is_valid_name_entry(self, name_data: Dict[str, str]) -> bool:
+        name = (name_data.get('name') or '').strip()
+        meaning = (name_data.get('meaning') or '').strip()
+        if not name or not meaning:
+            return False
+        bad_tokens = {'例如', '示例', '参考'}
+        if name in bad_tokens:
+            return False
+        if meaning in bad_tokens:
+            return False
+        if meaning == '根据角色描述生成':
+            return False
+        return True
+
+    def _extract_keywords(self, text: str) -> List[str]:
+        import re
+        chars = re.findall(r'[\u4e00-\u9fff]', text)
+        seen = set()
+        result = []
+        for ch in chars:
+            if ch not in seen:
+                seen.add(ch)
+                result.append(ch)
+            if len(result) >= 5:
+                break
+        return result
     
     def _is_chinese_name(self, name: str) -> bool:
         """判断是否为中文姓名"""
@@ -367,11 +432,12 @@ class NameGenerator:
         return total_strokes
     
     def get_available_options(self) -> Dict[str, List[str]]:
-        """获取可用的选项"""
+        """获取可用选项"""
         return {
             'cultural_styles': self.prompt_templates.get_available_styles(),
             'genders': self.prompt_templates.get_available_genders(),
             'ages': self.prompt_templates.get_available_ages(),
+            'scenarios': self.prompt_templates.get_available_scenarios(),
             'apis': self.unified_client.get_available_apis()
         }
     

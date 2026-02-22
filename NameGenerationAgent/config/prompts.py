@@ -172,6 +172,11 @@ class PromptTemplates:
     def get_available_ages(cls) -> List[str]:
         """获取可用的年龄选项"""
         return list(cls.AGE_PROMPTS.keys())
+
+    @classmethod
+    def get_available_scenarios(cls) -> List[str]:
+        """获取可用的创作场景（已弃用，返回空列表）"""
+        return []
     
     @classmethod
     def get_available_enhancement_types(cls) -> List[str]:

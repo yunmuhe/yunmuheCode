@@ -56,8 +56,13 @@ class AliyunConfig(APIConfig):
             base_url='https://dashscope.aliyuncs.com/api/v1',
             api_key=os.environ.get('ALIYUN_API_KEY')
         )
-        self.model = 'qwen-turbo'
+        # 支持通过环境变量覆盖模型
+        self.model = os.environ.get('ALIYUN_MODEL', 'qwen3-235b-a22b-thinking-2507')
         self.max_tokens = 2000
+        # 降级候选模型列表
+        self.fallback_models = [
+            os.environ.get('ALIYUN_FALLBACK_MODEL', 'qwen-turbo')
+        ]
     
     def get_headers(self) -> Dict[str, str]:
         return {
@@ -77,29 +82,31 @@ class SiliconFlowConfig(APIConfig):
         self.model = 'Qwen/Qwen2.5-7B-Instruct'
         self.max_tokens = 2000
 
-class BaishanConfig(APIConfig):
-    """白山云配置"""
-    
-    def __init__(self):
-        super().__init__(
-            name='baishan',
-            base_url='https://api.baishancloud.com/v1',
-            api_key=os.environ.get('BAISHAN_API_KEY')
-        )
-        self.model = 'gpt-3.5-turbo'
-        self.max_tokens = 2000
+class OpenAIConfig(APIConfig):
+    """OpenAI配置"""
 
-class BaiduConfig(APIConfig):
-    """百度千帆配置"""
-    
     def __init__(self):
         super().__init__(
-            name='baidu',
-            base_url='https://qianfan.baidubce.com/rest/2.0/ai_custom/v1',
-            api_key=os.environ.get('BAIDU_API_KEY')
+            name='openai',
+            base_url='https://api.openai.com/v1',
+            api_key=os.environ.get('OPENAI_API_KEY')
         )
-        self.model = 'ernie-bot-turbo'
+        self.model = 'gpt-4o'
         self.max_tokens = 2000
+        self.temperature = 0.7
+
+class GeminiConfig(APIConfig):
+    """Google Gemini配置"""
+
+    def __init__(self):
+        super().__init__(
+            name='gemini',
+            base_url='https://generativelanguage.googleapis.com',
+            api_key=os.environ.get('GEMINI_API_KEY')
+        )
+        self.model = 'gemini-2.0-flash-exp'
+        self.max_tokens = 2000
+        self.temperature = 0.7
 
 class PaiouConfig(APIConfig):
     """派欧云配置"""
@@ -148,6 +155,8 @@ class AistudioConfig:
         self.max_tokens = int(os.environ.get("AISTUDIO_MAX_TOKENS", 2000))
         self.enabled = bool(self.api_key)
         self.stream = True
+        self.response_format = None
+        self.fallback_models = ["qwen3:235b"]
 
     def get_headers(self):
         return {
@@ -164,6 +173,7 @@ class AistudioConfig:
             "model": self.model,
             "stream": self.stream,
             "max_tokens": self.max_tokens,
+            "response_format": self.response_format
         }
 
 class APIManager:
@@ -173,10 +183,10 @@ class APIManager:
         self.apis = {
             'aliyun': AliyunConfig(),
             'siliconflow': SiliconFlowConfig(),
-            'baishan': BaishanConfig(),
-            'baidu': BaiduConfig(),
+            'openai': OpenAIConfig(),
+            'gemini': GeminiConfig(),
             'paiou': PaiouConfig(),
-            'aistudio': AistudioConfig()  # 将aistudio添加到初始字典中
+            'aistudio': AistudioConfig()
         }
         # 在所有配置都添加完成后再计算active_apis
         self.active_apis = [name for name, config in self.apis.items() if config.enabled]
@@ -191,7 +201,7 @@ class APIManager:
     
     def get_primary_api(self) -> Optional[str]:
         """获取主要API（优先级顺序）"""
-        priority_order = ['aliyun', 'siliconflow', 'baishan', 'baidu', 'paiou', 'aistudio']
+        priority_order = ['aliyun', 'siliconflow', 'openai', 'gemini', 'paiou', 'aistudio']
         for api_name in priority_order:
             if api_name in self.active_apis:
                 return api_name
