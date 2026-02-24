@@ -13,31 +13,19 @@ class AistudioAdapter(BaseAPIAdapter):
         # 不使用__name__，不存储日志器，初始化只使用print提示
 
     def list_models(self) -> List[Dict[str, Any]]:
-        """
-        获取AI Studio可用的模型列表
-
-        Returns:
-            List[Dict]: 模型列表
-        """
+        """获取AI Studio可用的模型列表"""
         if not self.is_available():
             return []
 
-        # AI Studio使用OpenAI兼容API，返回预定义模型列表
-        return self._get_default_models()
-
-    def _get_default_models(self) -> List[Dict[str, Any]]:
-        """返回默认的AI Studio模型列表"""
-        default_models = [
-            {'id': 'qwen3:235b', 'name': 'Qwen3 235B', 'description': 'AI Studio通义千问3代235B模型', 'is_default': True},
-            {'id': 'qwen2.5:72b', 'name': 'Qwen2.5 72B', 'description': 'AI Studio通义千问2.5 72B模型', 'is_default': False},
-            {'id': 'qwen2.5:32b', 'name': 'Qwen2.5 32B', 'description': 'AI Studio通义千问2.5 32B模型', 'is_default': False},
-            {'id': 'deepseek-v3', 'name': 'DeepSeek V3', 'description': 'AI Studio DeepSeek V3模型', 'is_default': False},
+        current_model = getattr(self.config, 'model', 'Qwen3-30B-A3B-Q4_K_M')
+        return [
+            {
+                'id': current_model,
+                'name': current_model,
+                'description': f'AI Studio {current_model}',
+                'is_default': True,
+            },
         ]
-        # 标记当前配置的模型为默认
-        current_model = getattr(self.config, 'model', 'qwen3:235b')
-        for model in default_models:
-            model['is_default'] = (model['id'] == current_model)
-        return default_models
 
     def generate_names(self, prompt, count=5, **kwargs):
         completion_params = self.config.get_completion_params()
@@ -67,7 +55,7 @@ class AistudioAdapter(BaseAPIAdapter):
         except Exception as e:
             msg = str(e)
             if ("暂不支持该模型" in msg) or ("40405" in msg):
-                fallback_model = getattr(self.config, "fallback_models", ["qwen3:235b"])[0]
+                fallback_model = getattr(self.config, "fallback_models", ["Qwen3-30B-A3B-Q4_K_M"])[0]
                 try:
                     response = _do_request(fallback_model)
                     model = fallback_model

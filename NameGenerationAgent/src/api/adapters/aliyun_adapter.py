@@ -15,7 +15,7 @@ class AliyunAdapter(BaseAPIAdapter):
 
     def list_models(self) -> List[Dict[str, Any]]:
         """
-        获取阿里云百炼可用的模型列表
+        获取阿里云百炼可用的模型列表（通过兼容模式端点动态获取）
 
         Returns:
             List[Dict]: 模型列表
@@ -23,28 +23,34 @@ class AliyunAdapter(BaseAPIAdapter):
         if not self.is_available():
             return []
 
-        # 阿里云暂不提供公开的模型列表API，返回预定义的常用模型
-        return self._get_default_models()
+        try:
+            import requests as req
+            # 阿里云 DashScope 兼容模式的模型列表端点
+            url = 'https://dashscope.aliyuncs.com/compatible-mode/v1/models'
+            headers = self.config.get_headers()
+            resp = req.get(url, headers=headers, timeout=10)
+            resp.raise_for_status()
+            data = resp.json()
 
-    def _get_default_models(self) -> List[Dict[str, Any]]:
-        """返回默认的阿里云模型列表"""
-        default_models = [
-            {'id': 'qwen-max', 'name': 'Qwen Max', 'description': '通义千问超大规模语言模型，适用于复杂任务', 'is_default': False},
-            {'id': 'qwen-plus', 'name': 'Qwen Plus', 'description': '通义千问增强版，性能与成本平衡', 'is_default': False},
-            {'id': 'qwen-turbo', 'name': 'Qwen Turbo', 'description': '通义千问高性能版，响应速度快', 'is_default': False},
-            {'id': 'qwen3-235b-a22b-thinking-2507', 'name': 'Qwen3 235B Thinking', 'description': '通义千问3代思考模型', 'is_default': True},
-            {'id': 'qwen2.5-72b-instruct', 'name': 'Qwen2.5 72B', 'description': '通义千问2.5 72B指令模型', 'is_default': False},
-            {'id': 'qwen2.5-32b-instruct', 'name': 'Qwen2.5 32B', 'description': '通义千问2.5 32B指令模型', 'is_default': False},
-            {'id': 'qwen2.5-14b-instruct', 'name': 'Qwen2.5 14B', 'description': '通义千问2.5 14B指令模型', 'is_default': False},
-            {'id': 'qwen2.5-7b-instruct', 'name': 'Qwen2.5 7B', 'description': '通义千问2.5 7B指令模型', 'is_default': False},
-        ]
-        # 标记当前配置的模型为默认
-        for model in default_models:
-            if model['id'] == self.config.model:
-                model['is_default'] = True
-            else:
-                model['is_default'] = False
-        return default_models
+            models = []
+            for model_data in data.get('data', []):
+                model_id = model_data.get('id', '')
+                models.append({
+                    'id': model_id,
+                    'name': model_id,
+                    'description': f'阿里云 {model_id}',
+                    'is_default': model_id == self.config.model,
+                    'owned_by': model_data.get('owned_by', '')
+                })
+
+            if not models:
+                return []
+
+            return models
+
+        except Exception as e:
+            logger.warning(f"获取阿里云模型列表异常: {str(e)}")
+            return []
 
     def generate_names(self, prompt: str, **kwargs) -> Dict[str, Any]:
         """生成姓名（支持动态指定模型）"""
