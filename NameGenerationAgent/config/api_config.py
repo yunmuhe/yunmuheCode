@@ -150,13 +150,13 @@ class AistudioConfig:
     def __init__(self):
         self.name = "aistudio"
         self.base_url = os.environ.get("AISTUDIO_API_URL", "https://api-n0gca1bcpar672zf.aistudio-app.com/v1")
-        self.model = os.environ.get("AISTUDIO_MODEL", "qwen3:235b")
+        self.model = os.environ.get("AISTUDIO_MODEL", "Qwen3-30B-A3B-Q4_K_M")
         self.api_key = os.environ.get("AISTUDIO_API_KEY")
         self.max_tokens = int(os.environ.get("AISTUDIO_MAX_TOKENS", 2000))
         self.enabled = bool(self.api_key)
         self.stream = True
         self.response_format = None
-        self.fallback_models = ["qwen3:235b"]
+        self.fallback_models = ["Qwen3-30B-A3B-Q4_K_M"]
 
     def get_headers(self):
         return {

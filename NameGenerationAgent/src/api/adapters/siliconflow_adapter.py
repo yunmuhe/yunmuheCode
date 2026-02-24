@@ -40,24 +40,13 @@ class SiliconFlowAdapter(BaseAPIAdapter):
                     })
 
             if not models:
-                return self._get_default_models()
+                return []
 
             return models
 
         except Exception as e:
             logger.warning(f"获取硅基流动模型列表异常: {str(e)}")
-            return self._get_default_models()
-
-    def _get_default_models(self) -> List[Dict[str, Any]]:
-        """返回默认的硅基流动模型列表"""
-        default_models = [
-            {'id': 'Qwen/Qwen2.5-7B-Instruct', 'name': 'Qwen2.5-7B-Instruct', 'description': '通义千问2.5 7B指令模型', 'is_default': True},
-            {'id': 'Qwen/Qwen2.5-14B-Instruct', 'name': 'Qwen2.5-14B-Instruct', 'description': '通义千问2.5 14B指令模型'},
-            {'id': 'Qwen/Qwen2.5-32B-Instruct', 'name': 'Qwen2.5-32B-Instruct', 'description': '通义千问2.5 32B指令模型'},
-            {'id': 'deepseek-ai/DeepSeek-V2.5', 'name': 'DeepSeek-V2.5', 'description': 'DeepSeek V2.5模型'},
-            {'id': 'meta-llama/Meta-Llama-3.1-8B-Instruct', 'name': 'Llama-3.1-8B', 'description': 'Meta Llama 3.1 8B指令模型'},
-        ]
-        return default_models
+            return []
 
     def generate_names(self, prompt: str, **kwargs) -> Dict[str, Any]:
         """生成姓名（支持动态指定模型）"""

@@ -20,6 +20,14 @@ if not exist .env (
 echo.
 echo [2/2] 启动 Web 服务...
 echo.
+
+REM 尝试激活虚拟环境
+if exist "%~dp0..\.venv\Scripts\activate.bat" (
+    call "%~dp0..\.venv\Scripts\activate.bat"
+) else if exist "%~dp0..\.venv1\Scripts\activate.bat" (
+    call "%~dp0..\.venv1\Scripts\activate.bat"
+)
+
 python main.py
 
 pause

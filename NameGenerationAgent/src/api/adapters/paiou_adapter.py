@@ -23,7 +23,7 @@ class PaiouAdapter(BaseAPIAdapter):
 
     def list_models(self) -> List[Dict[str, Any]]:
         """
-        获取派欧云可用的模型列表
+        获取派欧云可用的模型列表（动态获取）
 
         Returns:
             List[Dict]: 模型列表
@@ -31,22 +31,28 @@ class PaiouAdapter(BaseAPIAdapter):
         if not self.is_available():
             return []
 
-        # 派欧云使用OpenAI兼容API，返回预定义模型列表
-        return self._get_default_models()
+        try:
+            response = self._make_request("models", {}, method='GET', timeout=10)
 
-    def _get_default_models(self) -> List[Dict[str, Any]]:
-        """返回默认的派欧云模型列表"""
-        default_models = [
-            {'id': 'qwen3:235b', 'name': 'Qwen3 235B', 'description': '派欧云通义千问3代235B模型', 'is_default': True},
-            {'id': 'qwen2.5:72b', 'name': 'Qwen2.5 72B', 'description': '派欧云通义千问2.5 72B模型', 'is_default': False},
-            {'id': 'qwen2.5:32b', 'name': 'Qwen2.5 32B', 'description': '派欧云通义千问2.5 32B模型', 'is_default': False},
-            {'id': 'deepseek-v3', 'name': 'DeepSeek V3', 'description': '派欧云DeepSeek V3模型', 'is_default': False},
-        ]
-        # 标记当前配置的模型为默认
-        current_model = getattr(self.config, 'model', 'qwen3:235b')
-        for model in default_models:
-            model['is_default'] = (model['id'] == current_model)
-        return default_models
+            models = []
+            for model_data in response.get('data', []):
+                model_id = model_data.get('id', '')
+                models.append({
+                    'id': model_id,
+                    'name': model_id.split('/')[-1] if '/' in model_id else model_id,
+                    'description': f'派欧云 {model_id}',
+                    'is_default': model_id == getattr(self.config, 'model', ''),
+                    'owned_by': model_data.get('owned_by', '')
+                })
+
+            if not models:
+                return []
+
+            return models
+
+        except Exception as e:
+            logger.warning(f"获取派欧云模型列表异常: {str(e)}")
+            return []
 
     def generate_names(self, prompt: str, **kwargs) -> Dict[str, Any]:
         """生成姓名"""
