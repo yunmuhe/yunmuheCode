@@ -1,0 +1,17 @@
+# KEYHUB local config (contains secrets)
+keys.json
+
+# Runtime files
+.keyhub.pid
+
+# Python cache
+__pycache__/
+*.py[cod]
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+
+# macOS
+.DS_Store
