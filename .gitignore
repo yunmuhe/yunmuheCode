@@ -48,7 +48,8 @@ venv.bak/
 .pydevproject
 .settings/
 
-# Claude Code配置（可选：如包含敏感信息可取消注释）
+# Claude Code配置（包含本地权限与敏感路径，不纳入版本控制）
+.claude/settings.local.json
 # .claude/mcp_settings.json
 
 # Logs
