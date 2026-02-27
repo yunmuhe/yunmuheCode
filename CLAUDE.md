@@ -65,6 +65,8 @@ Utils  (src/utils/)                 → CacheManager, InputValidator, NameValida
 
 6个适配器：AliyunAdapter（支持降级模型）、SiliconFlowAdapter、OpenAIAdapter、GeminiAdapter、PaiouAdapter（流式）、AistudioAdapter（流式）。
 
+适配器初始化由 `src/api/adapters/__init__.py` 的 `build_adapters()` 工厂函数完成：调用 `ensure_adapters_imported()` 触发各适配器模块注册 → 遍历 `ADAPTER_BUILDERS` 字典 → 为已启用的配置创建适配器实例。
+
 ### 自动降级机制
 
 API调用失败时自动按优先级降级 (src/api/unified_client.py:138)：
@@ -98,12 +100,14 @@ SQLite数据库（data/names_corpus.db，179MB，已gitignore）存储228万+真
 
 复制 `env.example` 为 `.env` 并配置至少一个API密钥（`ALIYUN_API_KEY`、`SILICONFLOW_API_KEY`、`OPENAI_API_KEY`、`GEMINI_API_KEY`、`PAIOU_API_KEY`、`AISTUDIO_API_KEY`）。其他可选配置：`ALLOWED_ORIGINS`、`DEBUG`、`LOG_LEVEL`、`CACHE_TTL`。
 
-每个平台在 config/api_config.py 有配置类，继承 `APIConfig` 基类 (line 34)。注意 `AistudioConfig` 未继承 `APIConfig`，而是独立实现了相同接口。适配器注册在 `APIManager.apis` (line 183)。
+每个平台在 config/api_config.py 有配置类，继承 `APIConfig` 基类 (line 34)。注意 `AistudioConfig` 未继承 `APIConfig`，而是独立实现了相同接口。流式适配器（Paiou、Aistudio）的配置类额外提供 `get_client_config()` 和 `get_completion_params()` 方法，普通配置类没有这些方法。适配器注册在 `APIManager.apis` (line 183)。
+
+**注意**：`.env` 文件被 `main.py` 和 `config/api_config.py` 各自独立解析加载（未使用 python-dotenv），调试环境变量问题时需注意这两处。
 
 ## 添加新API适配器
 
-1. **创建适配器** `src/api/adapters/newapi_adapter.py`：继承 `BaseAPIAdapter`，实现 `generate_names()`
-2. **创建配置类** `config/api_config.py`：继承 `APIConfig`
+1. **创建适配器** `src/api/adapters/newapi_adapter.py`：继承 `BaseAPIAdapter`，实现 `generate_names()`；如需流式响应，参考 `paiou_adapter.py` 或 `aistudio_adapter.py`
+2. **创建配置类** `config/api_config.py`：继承 `APIConfig`；流式适配器需额外实现 `get_client_config()` 和 `get_completion_params()`
 3. **注册配置** 在 `config/api_config.py:183` 的 `APIManager.apis` 字典添加
 4. **注册工厂** 在适配器文件底部调用 `register_adapter()`，并在 `src/api/adapters/__init__.py` 的 `ensure_adapters_imported()` 添加导入
 5. **更新优先级** 在 `src/api/router_strategy.py:7` 和 `config/api_config.py:204`
@@ -152,10 +156,16 @@ except APIException as e:
 ```
 
 ### 日志记录
+
+项目有两种日志导入路径，效果相同：
 ```python
+# 大多数模块使用（src/core/, src/web/, src/utils/ 等）
 from src.utils.logger import get_logger
-logger = get_logger(__name__)
+
+# 适配器模块使用（src/api/adapters/ 内部，通过相对导入）
+from ...utils.logging_helper import get_logger
 ```
+`logging_helper.py` 是代理模块，内部委托给 `logger.py`，带有 ImportError 降级。新代码推荐使用 `logger` 路径。
 
 ### 输入验证
 使用 `src/utils/validation.py` 中的 `InputValidator`（请求参数校验）和 `NameValidator`（生成结果校验）。所有SQL查询必须参数化。
@@ -174,6 +184,8 @@ logger = get_logger(__name__)
 - **src/web/app.py** - Flask应用和所有API端点定义
 - **src/data/corpus_loader.py** - SQLite语料库数据访问层
 - **src/utils/validation.py** - 输入和姓名验证器
+- **src/utils/logging_helper.py** - 日志代理模块（适配器使用的入口）
+- **src/core/knowledge_base.py** - 姓名相关知识库
 
 ## 前端
 
