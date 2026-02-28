@@ -5,50 +5,52 @@
 			"^uni-(.*)": "@/uni_modules/uni-$1/components/uni-$1/uni-$1.vue"
 		}
 	},
-	"pages": [ //pages数组中第一项表示应用启动页，参考：https://uniapp.dcloud.io/collocation/pages
+	"pages": [
 		{
-			"path" : "pages/Index/Index",
-			"style" :
-			{
-				"navigationBarTitleText" : "智能姓名生成器"
-			}
-		},
-		{
-			"path" : "pages/Generate/Generate",
-			"style" :
-			{
-				"navigationBarTitleText" : "",
+			"path": "pages/Auth/Auth",
+			"style": {
+				"navigationBarTitleText": "\u767b\u5f55\u6ce8\u518c",
 				"navigationStyle": "custom"
 			}
 		},
 		{
-			"path" : "pages/Favorites/Favorites",
-			"style" :
-			{
-				"navigationBarTitleText" : "",
+			"path": "pages/Index/Index",
+			"style": {
+				"navigationBarTitleText": "\u667a\u80fd\u59d3\u540d\u751f\u6210\u5668"
+			}
+		},
+		{
+			"path": "pages/Generate/Generate",
+			"style": {
+				"navigationBarTitleText": "",
 				"navigationStyle": "custom"
 			}
 		},
 		{
-			"path" : "pages/History/History",
-			"style" :
-			{
-				"navigationBarTitleText" : "",
+			"path": "pages/Favorites/Favorites",
+			"style": {
+				"navigationBarTitleText": "",
 				"navigationStyle": "custom"
 			}
 		},
 		{
-			"path" : "pages/Settings/Settings",
-			"style" :
-			{
-				"navigationBarTitleText" : "",
+			"path": "pages/History/History",
+			"style": {
+				"navigationBarTitleText": "",
+				"navigationStyle": "custom"
+			}
+		},
+		{
+			"path": "pages/Settings/Settings",
+			"style": {
+				"navigationBarTitleText": "",
 				"navigationStyle": "custom"
 			}
 		}
 	],
 	"globalStyle": {
 		"navigationBarTextStyle": "black",
-		"navigationBarTitleText": "智能姓名生成器",
+		"navigationBarTitleText": "\u667a\u80fd\u59d3\u540d\u751f\u6210\u5668",
 		"navigationBarBackgroundColor": "#F8F8F8",
 		"backgroundColor": "#F8F8F8"
 	},

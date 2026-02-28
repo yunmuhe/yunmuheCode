@@ -2,6 +2,7 @@ declare const uni: any;
 
 export const routes = {
 	index: '/pages/Index/Index',
+	auth: '/pages/Auth/Auth',
 	generate: '/pages/Generate/Generate',
 	favorites: '/pages/Favorites/Favorites',
 	history: '/pages/History/History',

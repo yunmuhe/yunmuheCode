@@ -1,15 +1,17 @@
 declare const process: any;
 declare const uni: any;
 
-// 固定服务器地址 - 公网映射地址
-const BASE_URL = 'http://nameagent.natapp1.cc';
-
-type Nullable<T> = T | null | undefined;
+const BASE_URL =
+	(typeof process !== 'undefined' && process?.env?.VITE_API_BASE_URL) ||
+	'http://127.0.0.1:5000';
+const AUTH_TOKEN_KEY = 'auth_token';
+const AUTH_USER_KEY = 'auth_user';
 
 interface RequestOptions {
 	url: string;
 	method?: 'GET' | 'POST' | 'DELETE';
 	data?: Record<string, any>;
+	headers?: Record<string, string>;
 }
 
 interface GenerateNamesPayload {
@@ -20,6 +22,7 @@ interface GenerateNamesPayload {
 	age: string;
 	preferred_api?: string;
 	use_cache?: boolean;
+	model?: string;
 }
 
 export interface GeneratedName {
@@ -60,8 +63,45 @@ export interface StatsResponse {
 	error?: string;
 }
 
+export interface AuthUser {
+	id: number;
+	phone: string;
+	created_at?: string;
+	updated_at?: string;
+	last_login_at?: string;
+}
+
+export interface AuthRegisterResponse {
+	success: boolean;
+	user?: AuthUser;
+	error?: string;
+}
+
+export interface AuthLoginResponse {
+	success: boolean;
+	token?: string;
+	expires_at?: string;
+	user?: AuthUser;
+	error?: string;
+}
+
+export interface AuthMeResponse {
+	success: boolean;
+	user?: AuthUser;
+	error?: string;
+}
+
 const request = <T>(options: RequestOptions): Promise<T> => {
-	const { url, method = 'GET', data } = options;
+	const { url, method = 'GET', data, headers = {} } = options;
+	const token = getAuthToken();
+	const requestHeaders: Record<string, string> = {
+		'Content-Type': 'application/json',
+		...headers,
+	};
+
+	if (token && !requestHeaders.Authorization) {
+		requestHeaders.Authorization = `Bearer ${token}`;
+	}
 
 	return new Promise((resolve, reject) => {
 		uni.request({
@@ -69,23 +109,74 @@ const request = <T>(options: RequestOptions): Promise<T> => {
 			method,
 			data,
 			timeout: 15000,
-			header: {
-				'Content-Type': 'application/json',
-			},
-			success: (res) => {
+			header: requestHeaders,
+			success: (res: any) => {
 				if (res.statusCode >= 200 && res.statusCode < 300) {
 					resolve(res.data as T);
-				} else {
-					const message =
-						(typeof res.data === 'object' && res.data && 'error' in res.data && (res.data as any).error) ||
-						`请求失败（${res.statusCode}）`;
-					reject(new Error(message as string));
+					return;
 				}
+				const message =
+					(typeof res.data === 'object' && res.data && 'error' in res.data && (res.data as any).error) ||
+					`Request failed (${res.statusCode})`;
+				reject(new Error(message as string));
 			},
-			fail: (error) => {
-				reject(new Error(error.errMsg || '网络请求失败'));
+			fail: (error: any) => {
+				reject(new Error(error.errMsg || 'Network request failed'));
 			},
 		});
+	});
+};
+
+export const getApiBaseUrl = () => BASE_URL;
+
+export const setAuthToken = (token: string) => {
+	uni.setStorageSync(AUTH_TOKEN_KEY, token);
+};
+
+export const getAuthToken = (): string => {
+	return uni.getStorageSync(AUTH_TOKEN_KEY) || '';
+};
+
+export const clearAuthToken = () => {
+	uni.removeStorageSync(AUTH_TOKEN_KEY);
+	uni.removeStorageSync(AUTH_USER_KEY);
+};
+
+export const setAuthUser = (user: AuthUser) => {
+	uni.setStorageSync(AUTH_USER_KEY, user);
+};
+
+export const getAuthUser = (): AuthUser | null => {
+	return uni.getStorageSync(AUTH_USER_KEY) || null;
+};
+
+export const authRegister = (payload: { phone: string; password: string; code?: string }): Promise<AuthRegisterResponse> => {
+	return request<AuthRegisterResponse>({
+		url: '/auth/register',
+		method: 'POST',
+		data: payload,
+	});
+};
+
+export const authLogin = (payload: { phone: string; password: string }): Promise<AuthLoginResponse> => {
+	return request<AuthLoginResponse>({
+		url: '/auth/login',
+		method: 'POST',
+		data: payload,
+	});
+};
+
+export const authMe = (): Promise<AuthMeResponse> => {
+	return request<AuthMeResponse>({
+		url: '/auth/me',
+		method: 'GET',
+	});
+};
+
+export const authLogout = (): Promise<{ success: boolean; error?: string }> => {
+	return request<{ success: boolean; error?: string }>({
+		url: '/auth/logout',
+		method: 'POST',
 	});
 };
 
@@ -111,8 +202,6 @@ export const fetchBackendStats = (): Promise<StatsResponse> => {
 	});
 };
 
-export const getApiBaseUrl = () => BASE_URL;
-
 export const fetchHealth = (): Promise<{ status: string; timestamp: string; version?: string }> => {
 	return request<{ status: string; timestamp: string; version?: string }>({
 		url: '/health',
@@ -120,7 +209,6 @@ export const fetchHealth = (): Promise<{ status: string; timestamp: string; vers
 	});
 };
 
-// -------- Favorites --------
 export interface FavoriteItem {
 	id: string;
 	name: string;
@@ -155,7 +243,6 @@ export const deleteFavorites = (ids: string[] | string): Promise<{ success: bool
 	});
 };
 
-// -------- History --------
 export interface HistoryItem {
 	id: string;
 	description: string;
@@ -175,7 +262,6 @@ export const getHistoryList = (params: { page?: number; page_size?: number; q?: 
 	});
 };
 
-// -------- Models --------
 export interface ModelInfo {
 	id: string;
 	name: string;
@@ -185,11 +271,11 @@ export interface ModelInfo {
 
 export interface ModelsResponse {
 	success: boolean;
-	models?: Record<string, ModelInfo[]>;  // 所有平台的模型
-	platforms?: string[];  // 平台列表
-	total_count?: number;  // 模型总数
-	api?: string;  // 单个平台查询时返回
-	count?: number;  // 单个平台模型数量
+	models?: Record<string, ModelInfo[]>;
+	platforms?: string[];
+	total_count?: number;
+	api?: string;
+	count?: number;
 	error?: string;
 }
 
