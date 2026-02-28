@@ -101,6 +101,31 @@ def get_logger():
         import logging
         return logging.getLogger(__name__)
 
+def get_auth_service():
+    """Get auth service with delayed import."""
+    try:
+        try:
+            from src.core.auth_service import auth_service
+        except ImportError:
+            project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+            if project_root not in sys.path:
+                sys.path.insert(0, project_root)
+            from src.core.auth_service import auth_service
+        return auth_service
+    except ImportError as e:
+        logger = get_logger()
+        logger.error(f"auth service import failed: {str(e)}")
+        return None
+
+def extract_bearer_token():
+    """Extract token from Authorization header or request body."""
+    auth_header = request.headers.get('Authorization', '')
+    if auth_header.startswith('Bearer '):
+        return auth_header[7:].strip()
+    data = request.get_json(silent=True) or {}
+    token = data.get('token')
+    return token.strip() if isinstance(token, str) else ''
+
 def create_app():
     """创建Flask应用"""
     app = Flask(__name__)
@@ -144,7 +169,11 @@ def index():
             'generate': '/generate',
             'stats': '/stats',
             'history': '/history/list',
-            'favorites': '/favorites'
+            'favorites': '/favorites',
+            'auth_register': '/auth/register',
+            'auth_login': '/auth/login',
+            'auth_me': '/auth/me',
+            'auth_logout': '/auth/logout'
         },
         'frontend': 'uni-app (智能姓名生成系统)',
         'description': '基于多平台AI的智能中文姓名生成API'
@@ -474,6 +503,83 @@ def favorites():
             'success': False,
             'error': f'收藏接口失败: {str(e)}'
         }), 500
+
+@app.route('/auth/register', methods=['POST'])
+def auth_register():
+    """Register a new user with phone and password."""
+    try:
+        auth_service = get_auth_service()
+        if not auth_service:
+            return jsonify({'success': False, 'error': '认证服务不可用'}), 500
+
+        data = request.get_json() or {}
+        phone = (data.get('phone') or '').strip()
+        password = data.get('password') or ''
+        success, result, status_code = auth_service.register_user(phone=phone, password=password)
+        return jsonify(result), status_code
+    except Exception as e:
+        logger = get_logger()
+        logger.error(f"register failed: {str(e)}")
+        return jsonify({'success': False, 'error': f'注册失败: {str(e)}'}), 500
+
+@app.route('/auth/login', methods=['POST'])
+def auth_login():
+    """Login and return token."""
+    try:
+        auth_service = get_auth_service()
+        if not auth_service:
+            return jsonify({'success': False, 'error': '认证服务不可用'}), 500
+
+        data = request.get_json() or {}
+        phone = (data.get('phone') or '').strip()
+        password = data.get('password') or ''
+        success, result, status_code = auth_service.login_user(phone=phone, password=password)
+        return jsonify(result), status_code
+    except Exception as e:
+        logger = get_logger()
+        logger.error(f"login failed: {str(e)}")
+        return jsonify({'success': False, 'error': f'登录失败: {str(e)}'}), 500
+
+@app.route('/auth/me', methods=['GET'])
+def auth_me():
+    """Return current user from Bearer token."""
+    try:
+        auth_service = get_auth_service()
+        if not auth_service:
+            return jsonify({'success': False, 'error': '认证服务不可用'}), 500
+
+        token = extract_bearer_token()
+        if not token:
+            return jsonify({'success': False, 'error': '未提供令牌'}), 401
+
+        user = auth_service.get_user_by_token(token)
+        if not user:
+            return jsonify({'success': False, 'error': '令牌无效或已过期'}), 401
+
+        return jsonify({'success': True, 'user': user})
+    except Exception as e:
+        logger = get_logger()
+        logger.error(f"auth me failed: {str(e)}")
+        return jsonify({'success': False, 'error': f'鉴权失败: {str(e)}'}), 500
+
+@app.route('/auth/logout', methods=['POST'])
+def auth_logout():
+    """Revoke current Bearer token."""
+    try:
+        auth_service = get_auth_service()
+        if not auth_service:
+            return jsonify({'success': False, 'error': '认证服务不可用'}), 500
+
+        token = extract_bearer_token()
+        if not token:
+            return jsonify({'success': False, 'error': '未提供令牌'}), 401
+
+        auth_service.logout_token(token)
+        return jsonify({'success': True})
+    except Exception as e:
+        logger = get_logger()
+        logger.error(f"logout failed: {str(e)}")
+        return jsonify({'success': False, 'error': f'退出失败: {str(e)}'}), 500
 
 @app.route('/health')
 def health_check():
