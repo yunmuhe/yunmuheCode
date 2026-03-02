@@ -9,7 +9,7 @@ def _auth_header(token: str) -> dict:
 
 def test_auth_register_login_me_logout_flow(tmp_path, monkeypatch):
     test_db = tmp_path / "auth_test.db"
-    monkeypatch.setattr(auth_module, "auth_service", AuthService(db_path=str(test_db)))
+    monkeypatch.setattr(auth_module, "auth_service", AuthService(db_url=f"sqlite:///{test_db}"))
 
     app = web_app_module.app
     app.config["TESTING"] = True

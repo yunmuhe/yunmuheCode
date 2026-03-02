@@ -1,25 +1,33 @@
 """
-Authentication service backed by SQLite.
+Authentication service backed by SQLAlchemy (MySQL in production).
 """
+
 from __future__ import annotations
 
+import base64
+import hashlib
+import hmac
 import os
 import re
 import secrets
-import sqlite3
-import hashlib
-import hmac
-import base64
 from datetime import datetime, timedelta
 from typing import Dict, Optional, Tuple
 
+from sqlalchemy import and_, select
+
+from src.db.database import get_engine, get_session_factory, init_db
+from src.db.models import User, UserToken
 
 PHONE_PATTERN = re.compile(r"^1\d{10}$")
 PBKDF2_ITERATIONS = 150000
 
 
+def _utc_now() -> datetime:
+    return datetime.utcnow().replace(microsecond=0)
+
+
 def _utc_now_iso() -> str:
-    return datetime.utcnow().replace(microsecond=0).isoformat()
+    return _utc_now().isoformat()
 
 
 def _hash_password(password: str, salt: Optional[bytes] = None) -> str:
@@ -57,51 +65,11 @@ def _verify_password(password: str, encoded: str) -> bool:
 
 
 class AuthService:
-    def __init__(self, db_path: Optional[str] = None):
-        root_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-        data_dir = os.path.join(root_dir, "data")
-        os.makedirs(data_dir, exist_ok=True)
-        env_db_path = os.getenv("AUTH_DB_PATH")
-        self.db_path = db_path or env_db_path or os.path.join(data_dir, "auth.db")
-        self._init_db()
-
-    def _get_conn(self) -> sqlite3.Connection:
-        conn = sqlite3.connect(self.db_path)
-        conn.row_factory = sqlite3.Row
-        return conn
-
-    def _init_db(self) -> None:
-        with self._get_conn() as conn:
-            conn.execute(
-                """
-                CREATE TABLE IF NOT EXISTS users (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    phone TEXT NOT NULL UNIQUE,
-                    password_hash TEXT NOT NULL,
-                    created_at TEXT NOT NULL,
-                    updated_at TEXT NOT NULL,
-                    last_login_at TEXT
-                )
-                """
-            )
-            conn.execute(
-                """
-                CREATE TABLE IF NOT EXISTS user_tokens (
-                    token TEXT PRIMARY KEY,
-                    user_id INTEGER NOT NULL,
-                    created_at TEXT NOT NULL,
-                    expires_at TEXT NOT NULL,
-                    revoked INTEGER NOT NULL DEFAULT 0,
-                    FOREIGN KEY (user_id) REFERENCES users(id)
-                )
-                """
-            )
-            conn.execute(
-                """
-                CREATE INDEX IF NOT EXISTS idx_user_tokens_user_id
-                ON user_tokens(user_id)
-                """
-            )
+    def __init__(self, db_url: Optional[str] = None):
+        self.engine = get_engine(db_url)
+        init_db(self.engine)
+        self.SessionLocal = get_session_factory(db_url)
+        self._ensure_admin_user_from_env()
 
     def _validate_credentials(self, phone: str, password: str) -> Optional[str]:
         if not PHONE_PATTERN.match(phone or ""):
@@ -110,88 +78,134 @@ class AuthService:
             return "密码长度至少 6 位"
         return None
 
-    def _row_to_user(self, row: sqlite3.Row) -> Dict:
+    @staticmethod
+    def _row_to_user(row: User) -> Dict:
+        def to_iso(value):
+            return value.isoformat() if value else None
+
         return {
-            "id": row["id"],
-            "phone": row["phone"],
-            "created_at": row["created_at"],
-            "updated_at": row["updated_at"],
-            "last_login_at": row["last_login_at"],
+            "id": row.id,
+            "phone": row.phone,
+            "role": row.role,
+            "is_enabled": bool(row.is_enabled),
+            "must_change_password": bool(row.must_change_password),
+            "created_at": to_iso(row.created_at),
+            "updated_at": to_iso(row.updated_at),
+            "last_login_at": to_iso(row.last_login_at),
         }
+
+    def _ensure_admin_user_from_env(self) -> None:
+        phone = (os.getenv("ADMIN_PHONE") or "").strip()
+        password = (os.getenv("ADMIN_PASSWORD") or "").strip()
+        if not phone or not password:
+            return
+        if not PHONE_PATTERN.match(phone):
+            return
+        if len(password) < 6:
+            return
+
+        with self.SessionLocal() as session:
+            row = session.execute(select(User).where(User.phone == phone)).scalar_one_or_none()
+            now = _utc_now()
+            if row is None:
+                row = User(
+                    phone=phone,
+                    password_hash=_hash_password(password),
+                    role="admin",
+                    is_enabled=True,
+                    must_change_password=False,
+                    created_at=now,
+                    updated_at=now,
+                )
+                session.add(row)
+            else:
+                row.role = "admin"
+                row.is_enabled = True
+                row.updated_at = now
+            session.commit()
 
     def register_user(self, phone: str, password: str) -> Tuple[bool, Dict, int]:
         error = self._validate_credentials(phone, password)
         if error:
             return False, {"success": False, "error": error}, 400
 
-        now = _utc_now_iso()
-        password_hash = _hash_password(password)
-        try:
-            with self._get_conn() as conn:
-                cursor = conn.execute(
-                    """
-                    INSERT INTO users (phone, password_hash, created_at, updated_at)
-                    VALUES (?, ?, ?, ?)
-                    """,
-                    (phone, password_hash, now, now),
-                )
-                user_id = cursor.lastrowid
-                user_row = conn.execute("SELECT * FROM users WHERE id = ?", (user_id,)).fetchone()
-            return True, {"success": True, "user": self._row_to_user(user_row)}, 201
-        except sqlite3.IntegrityError:
-            return False, {"success": False, "error": "该手机号已注册"}, 409
+        now = _utc_now()
+        with self.SessionLocal() as session:
+            exists = session.execute(select(User).where(User.phone == phone)).scalar_one_or_none()
+            if exists:
+                return False, {"success": False, "error": "该手机号已注册"}, 409
+
+            row = User(
+                phone=phone,
+                password_hash=_hash_password(password),
+                role="user",
+                is_enabled=True,
+                must_change_password=False,
+                created_at=now,
+                updated_at=now,
+            )
+            session.add(row)
+            session.commit()
+            session.refresh(row)
+            return True, {"success": True, "user": self._row_to_user(row)}, 201
 
     def login_user(self, phone: str, password: str, token_ttl_days: int = 7) -> Tuple[bool, Dict, int]:
         error = self._validate_credentials(phone, password)
         if error:
             return False, {"success": False, "error": error}, 400
 
-        with self._get_conn() as conn:
-            user_row = conn.execute("SELECT * FROM users WHERE phone = ?", (phone,)).fetchone()
-            if not user_row:
+        with self.SessionLocal() as session:
+            row = session.execute(select(User).where(User.phone == phone)).scalar_one_or_none()
+            if row is None:
                 return False, {"success": False, "error": "账号不存在"}, 404
-            if not _verify_password(password, user_row["password_hash"]):
+            if not row.is_enabled:
+                return False, {"success": False, "error": "账号已被禁用"}, 403
+            if not _verify_password(password, row.password_hash):
                 return False, {"success": False, "error": "密码错误"}, 401
 
-            now = datetime.utcnow().replace(microsecond=0)
+            now = _utc_now()
             expires = now + timedelta(days=token_ttl_days)
             token = secrets.token_urlsafe(40)
-            conn.execute(
-                """
-                INSERT INTO user_tokens (token, user_id, created_at, expires_at, revoked)
-                VALUES (?, ?, ?, ?, 0)
-                """,
-                (token, user_row["id"], now.isoformat(), expires.isoformat()),
+            token_row = UserToken(
+                token=token,
+                user_id=row.id,
+                created_at=now,
+                expires_at=expires,
+                revoked=False,
             )
-            conn.execute(
-                "UPDATE users SET last_login_at = ?, updated_at = ? WHERE id = ?",
-                (now.isoformat(), now.isoformat(), user_row["id"]),
+            row.last_login_at = now
+            row.updated_at = now
+            session.add(token_row)
+            session.commit()
+            session.refresh(row)
+            return (
+                True,
+                {
+                    "success": True,
+                    "token": token,
+                    "expires_at": expires.isoformat(),
+                    "user": self._row_to_user(row),
+                },
+                200,
             )
-            fresh_user = conn.execute("SELECT * FROM users WHERE id = ?", (user_row["id"],)).fetchone()
-
-        return True, {
-            "success": True,
-            "token": token,
-            "expires_at": expires.isoformat(),
-            "user": self._row_to_user(fresh_user),
-        }, 200
 
     def get_user_by_token(self, token: str) -> Optional[Dict]:
         if not token:
             return None
-        now = _utc_now_iso()
-        with self._get_conn() as conn:
-            row = conn.execute(
-                """
-                SELECT u.*
-                FROM user_tokens t
-                JOIN users u ON t.user_id = u.id
-                WHERE t.token = ?
-                  AND t.revoked = 0
-                  AND t.expires_at > ?
-                """,
-                (token, now),
-            ).fetchone()
+        now = _utc_now()
+        with self.SessionLocal() as session:
+            stmt = (
+                select(User)
+                .join(UserToken, UserToken.user_id == User.id)
+                .where(
+                    and_(
+                        UserToken.token == token,
+                        UserToken.revoked.is_(False),
+                        UserToken.expires_at > now,
+                    )
+                )
+            )
+            row = session.execute(stmt).scalar_one_or_none()
             if not row:
                 return None
             return self._row_to_user(row)
@@ -199,12 +213,159 @@ class AuthService:
     def logout_token(self, token: str) -> bool:
         if not token:
             return False
-        with self._get_conn() as conn:
-            result = conn.execute(
-                "UPDATE user_tokens SET revoked = 1 WHERE token = ? AND revoked = 0",
-                (token,),
+        with self.SessionLocal() as session:
+            row = session.execute(select(UserToken).where(UserToken.token == token)).scalar_one_or_none()
+            if not row or row.revoked:
+                return False
+            row.revoked = True
+            session.commit()
+            return True
+
+    def get_user_by_id(self, user_id: int) -> Optional[Dict]:
+        with self.SessionLocal() as session:
+            row = session.execute(select(User).where(User.id == user_id)).scalar_one_or_none()
+            return self._row_to_user(row) if row else None
+
+    def get_user_by_phone(self, phone: str) -> Optional[Dict]:
+        with self.SessionLocal() as session:
+            row = session.execute(select(User).where(User.phone == phone)).scalar_one_or_none()
+            return self._row_to_user(row) if row else None
+
+    def set_user_enabled(self, user_id: int, enabled: bool) -> bool:
+        with self.SessionLocal() as session:
+            row = session.execute(select(User).where(User.id == user_id)).scalar_one_or_none()
+            if not row:
+                return False
+            row.is_enabled = bool(enabled)
+            row.updated_at = _utc_now()
+            session.commit()
+            return True
+
+    def set_user_role(self, user_id: int, role: str) -> bool:
+        if role not in {"admin", "user"}:
+            return False
+        with self.SessionLocal() as session:
+            row = session.execute(select(User).where(User.id == user_id)).scalar_one_or_none()
+            if not row:
+                return False
+            row.role = role
+            row.updated_at = _utc_now()
+            session.commit()
+            return True
+
+    def mark_user_must_change_password(self, user_id: int, required: bool) -> bool:
+        with self.SessionLocal() as session:
+            row = session.execute(select(User).where(User.id == user_id)).scalar_one_or_none()
+            if not row:
+                return False
+            row.must_change_password = bool(required)
+            row.updated_at = _utc_now()
+            session.commit()
+            return True
+
+    def reset_user_password(self, user_id: int, temp_password: str = "123456") -> bool:
+        if len(temp_password) < 6:
+            return False
+        with self.SessionLocal() as session:
+            row = session.execute(select(User).where(User.id == user_id)).scalar_one_or_none()
+            if not row:
+                return False
+            row.password_hash = _hash_password(temp_password)
+            row.must_change_password = True
+            row.updated_at = _utc_now()
+            session.commit()
+            return True
+
+    def change_password_by_token(
+        self, token: str, old_password: str, new_password: str
+    ) -> Tuple[bool, Dict, int]:
+        if not token:
+            return False, {"success": False, "error": "未提供令牌"}, 401
+        if not new_password or len(new_password) < 6:
+            return False, {"success": False, "error": "新密码长度至少 6 位"}, 400
+
+        now = _utc_now()
+        with self.SessionLocal() as session:
+            stmt = (
+                select(User, UserToken)
+                .join(UserToken, UserToken.user_id == User.id)
+                .where(
+                    and_(
+                        UserToken.token == token,
+                        UserToken.revoked.is_(False),
+                        UserToken.expires_at > now,
+                    )
+                )
             )
-            return result.rowcount > 0
+            row = session.execute(stmt).first()
+            if not row:
+                return False, {"success": False, "error": "令牌无效或已过期"}, 401
+            user = row[0]
+            if not _verify_password(old_password or "", user.password_hash):
+                return False, {"success": False, "error": "原密码错误"}, 401
+            user.password_hash = _hash_password(new_password)
+            user.must_change_password = False
+            user.updated_at = now
+            session.commit()
+        return True, {"success": True}, 200
+
+    def list_users(
+        self,
+        phone: str = "",
+        role: str = "",
+        enabled: Optional[bool] = None,
+        page: int = 1,
+        page_size: int = 20,
+    ) -> Dict:
+        safe_page = max(1, int(page or 1))
+        safe_size = max(1, min(100, int(page_size or 20)))
+
+        with self.SessionLocal() as session:
+            stmt = select(User)
+            if phone:
+                stmt = stmt.where(User.phone.like(f"%{phone}%"))
+            if role in {"admin", "user"}:
+                stmt = stmt.where(User.role == role)
+            if enabled is not None:
+                stmt = stmt.where(User.is_enabled.is_(bool(enabled)))
+
+            all_rows = session.execute(stmt.order_by(User.id.desc())).scalars().all()
+            total = len(all_rows)
+            start = (safe_page - 1) * safe_size
+            end = start + safe_size
+            items = [self._row_to_user(x) for x in all_rows[start:end]]
+            return {
+                "items": items,
+                "total": total,
+                "page": safe_page,
+                "page_size": safe_size,
+            }
 
 
-auth_service = AuthService()
+def _is_sqlite_env() -> bool:
+    url = (os.getenv("DATABASE_URL") or "").strip().lower()
+    dialect = (os.getenv("DB_DIALECT") or "").strip().lower()
+    if url.startswith("sqlite:"):
+        return True
+    if dialect.startswith("sqlite"):
+        return True
+    return False
+
+
+def _build_default_auth_service() -> AuthService:
+    try:
+        return AuthService()
+    except Exception:
+        # Only fallback when sqlite is explicitly configured.
+        if not _is_sqlite_env():
+            raise
+        root_dir = os.path.dirname(
+            os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        )
+        data_dir = os.path.join(root_dir, "data")
+        os.makedirs(data_dir, exist_ok=True)
+        fallback_db = os.path.join(data_dir, "auth_fallback.db")
+        return AuthService(db_url=f"sqlite:///{fallback_db}")
+
+
+auth_service = _build_default_auth_service()
