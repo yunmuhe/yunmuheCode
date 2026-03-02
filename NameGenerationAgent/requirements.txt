@@ -87,3 +87,5 @@ waitress>=2.1.2
 # 可选：API文档生成
 # flask-restx>=1.2.0
 # apispec>=6.3.0
+SQLAlchemy>=2.0.21
+PyMySQL>=1.1.0

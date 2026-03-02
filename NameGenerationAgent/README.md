@@ -287,3 +287,37 @@ MIT
 欢迎提交Issue和Pull Request！
 
 开发前请阅读 [CLAUDE.md](../CLAUDE.md) 了解项目架构和开发规范。
+
+## MySQL ��֤���̨������2026-03��
+
+- ��֤�����Ƴ־û���֧�� MySQL��SQLAlchemy���������� SQLite ���ס�
+- �û�ģ�������ֶΣ�
+ole��is_enabled��must_change_password��
+- �������ɼ�¼�� generation_records������ user_id ������
+- ������̨����ҳ�棺/admin������Ա��¼����ã���
+
+### �����ӿ�
+
+- POST /auth/change-password���û��޸��������롣
+- GET /history/list����Ϊ���ص�ǰ��¼�û������ݿ���ʷ��¼��
+
+### ������̨����
+
+- �û��б����û����飨��������ʷ��
+- ���û�/ʱ��ɸѡ
+- ɾ�����ɼ�¼
+- ����/�����û�
+- ��������Ϊ 123456 ��ǿ���´θ���
+
+### �ؼ���������
+
+- DATABASE_URL����ѡ�����ȼ���ߣ�
+- DB_DIALECT��MYSQL_HOST��MYSQL_PORT��MYSQL_USER��MYSQL_PASSWORD��MYSQL_DATABASE
+- ADMIN_PHONE��ADMIN_PASSWORD������ʱ�Զ�����/У������Ա��
+
+### Ǩ�ƽű�
+
+- scripts/migrate_auth_sqlite_to_mysql.py
+- ʾ����
+  - python scripts/migrate_auth_sqlite_to_mysql.py --sqlite-path data/auth.db --target-db-url mysql+pymysql://root:123456@127.0.0.1:3306/ruoyi?charset=utf8mb4
+
