@@ -9,6 +9,9 @@ from datetime import datetime
 from flask import Flask, jsonify, request, session
 from flask_cors import CORS
 
+from src.utils.env_loader import get_env_source, set_env_source
+from src.web.dev_server import get_dev_server_options
+
 # ???????? Python ??
 project_root = os.path.dirname(
     os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -28,7 +31,11 @@ def load_env_file():
                         key, value = line.split("=", 1)
                         key = key.strip()
                         value = value.strip()
-                        os.environ[key] = value
+                        if key not in os.environ:
+                            os.environ[key] = value
+                            set_env_source(key, ".env")
+                        elif get_env_source(key) == "missing":
+                            set_env_source(key, "process_env")
             print(".env ??????")
         except Exception as e:
             print(f".env ??????: {str(e)}")
@@ -262,6 +269,7 @@ def generate_names():
         gender = data.get("gender", "neutral")
         age = data.get("age", "adult")
         preferred_api = data.get("preferred_api")
+        model = data.get("model")
         use_cache = data.get("use_cache", True)
         preferred_surname = (data.get("preferred_surname") or "").strip()
         preferred_era = (data.get("preferred_era") or "").strip()
@@ -292,6 +300,7 @@ def generate_names():
                 gender=gender,
                 age=age,
                 preferred_api=preferred_api,
+                model=model,
                 use_cache=use_cache,
                 preferred_surname=preferred_surname,
                 surname_weight=surname_weight,
@@ -729,4 +738,8 @@ if __name__ == "__main__":
     logger = get_logger()
     config = get_config()
     logger.info("启动智能姓名生成系统")
-    app.run(host="0.0.0.0", port=5000, debug=config["default"].DEBUG)
+    app.run(
+        host="0.0.0.0",
+        port=5000,
+        **get_dev_server_options(debug=config["default"].DEBUG),
+    )

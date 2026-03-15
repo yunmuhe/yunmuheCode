@@ -3,6 +3,7 @@
 """
 import os
 import sys
+from src.utils.env_loader import get_env_source, set_env_source
 
 # 设置控制台编码为UTF-8
 if sys.platform == 'win32':
@@ -35,7 +36,11 @@ def main():
                     key, value = line.split('=', 1)
                     key = key.strip()
                     value = value.strip()
-                    os.environ[key] = value
+                    if key not in os.environ:
+                        os.environ[key] = value
+                        set_env_source(key, '.env')
+                    elif get_env_source(key) == 'missing':
+                        set_env_source(key, 'process_env')
         print("[成功] 环境变量加载成功")
     except Exception as e:
         print(f"[错误] 环境变量加载失败: {str(e)}")
@@ -78,7 +83,7 @@ def main():
         print("   - 年龄: 儿童/青少年/成年人/长者")
         print("   - 同一描述 + 不同选项 = 不同风格的姓名")
         print("按 Ctrl+C 停止服务")
-        app.run(host='0.0.0.0', port=5000, debug=True)
+        app.run(host='0.0.0.0', port=5000)
     except Exception as e:
         print(f"[错误] Flask应用启动失败: {str(e)}")
         import traceback

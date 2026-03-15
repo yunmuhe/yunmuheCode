@@ -117,7 +117,17 @@ class UnifiedAPIClient:
             api_manager = get_api_manager()
             from .adapters import build_adapters
             self.adapters = build_adapters(api_manager.apis)
+            diagnostics = getattr(api_manager, "get_api_diagnostics", lambda: {})()
             logger.info(f"已初始化 {len(self.adapters)} 个API适配器: {list(self.adapters.keys())}")
+            for api_name, detail in diagnostics.items():
+                logger.info(
+                    "API配置 %s enabled=%s key_source=%s key=%s model=%s",
+                    api_name,
+                    detail.get("enabled"),
+                    detail.get("api_key_source"),
+                    detail.get("api_key_masked"),
+                    detail.get("model"),
+                )
         except Exception as e:
             logger.error(f"初始化适配器失败: {str(e)}")
             logger.error("详细错误堆栈:")
@@ -155,13 +165,19 @@ class UnifiedAPIClient:
         
         # 尝试调用API
         last_error = None
-        for api_name in api_priority:
+        for index, api_name in enumerate(api_priority):
             if api_name not in self.adapters:
                 continue
             
             try:
                 logger.info(f"尝试使用 {api_name} API生成姓名")
-                result = self.adapters[api_name].generate_names(prompt, **kwargs)
+                adapter_kwargs = self._build_adapter_kwargs(
+                    api_name=api_name,
+                    preferred_api=preferred_api,
+                    attempt_index=index,
+                    kwargs=kwargs,
+                )
+                result = self.adapters[api_name].generate_names(prompt, **adapter_kwargs)
                 
                 # 限制返回的姓名数量
                 if 'names' in result and len(result['names']) > count:
@@ -205,6 +221,25 @@ class UnifiedAPIClient:
                 'api_name': 'none'
             }
     
+    def _build_adapter_kwargs(
+        self,
+        api_name: str,
+        preferred_api: Optional[str],
+        attempt_index: int,
+        kwargs: Dict[str, Any],
+    ) -> Dict[str, Any]:
+        adapter_kwargs = dict(kwargs)
+        if not adapter_kwargs.get("model"):
+            return adapter_kwargs
+
+        is_requested_api = preferred_api and api_name == preferred_api
+        is_first_attempt_without_preference = preferred_api is None and attempt_index == 0
+        if is_requested_api or is_first_attempt_without_preference:
+            return adapter_kwargs
+
+        adapter_kwargs.pop("model", None)
+        return adapter_kwargs
+
     def _get_api_priority(self, preferred_api: Optional[str] = None, context: Optional[Dict[str, Any]] = None) -> List[str]:
         try:
             return self.router_strategy.get_priority(self.adapters, preferred_api, context)

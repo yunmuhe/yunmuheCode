@@ -1,34 +1,46 @@
 @echo off
 chcp 65001 >nul
+setlocal
+
+set "SCRIPT_DIR=%~dp0"
+pushd "%SCRIPT_DIR%" >nul
+
 echo ========================================
-echo 智能姓名生成系统 - 快速启动
+echo Name Generation Agent - Quick Start
 echo ========================================
 echo.
 
-echo [1/2] 检查 .env 文件...
-if not exist .env (
-    echo ⚠ .env 文件不存在，正在创建...
-    copy env.example .env >nul
-    echo ✅ .env 文件创建成功
-    echo 📝 请编辑 .env 文件配置你的 API 密钥
+echo [1/2] Checking .env file...
+if not exist ".env" (
+    echo [INFO] .env was not found. Creating it from env.example...
+    copy "env.example" ".env" >nul
+    echo [INFO] .env created. Update it with your configuration before continuing.
     echo.
+    popd
     pause
+    exit /b 1
 ) else (
-    echo ✅ .env 文件已存在
+    echo [OK] .env already exists.
 )
 
 echo.
-echo [2/2] 启动 Web 服务...
+echo [2/2] Starting web service...
 echo.
 
-REM 尝试激活虚拟环境
-if exist "%~dp0..\.venv\Scripts\activate.bat" (
-    call "%~dp0..\.venv\Scripts\activate.bat"
-) else if exist "%~dp0..\.venv1\Scripts\activate.bat" (
-    call "%~dp0..\.venv1\Scripts\activate.bat"
+for %%I in ("%SCRIPT_DIR%..") do set "ROOT_DIR=%%~fI"
+set "PYTHON_EXE=%ROOT_DIR%\.venv\Scripts\python.exe"
+
+if not exist "%PYTHON_EXE%" (
+    echo [ERROR] Required virtual environment was not found:
+    echo         %PYTHON_EXE%
+    echo [HINT] Create or repair the root .venv before starting the app.
+    popd
+    pause
+    exit /b 1
 )
 
-python main.py
+echo [INFO] Using Python: %PYTHON_EXE%
+"%PYTHON_EXE%" "%SCRIPT_DIR%main.py"
 
+popd
 pause
-

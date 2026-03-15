@@ -3,6 +3,7 @@
 """
 import os
 from typing import Dict, Any, Optional
+from src.utils.env_loader import get_env_source, set_env_source
 
 def load_env_file():
     """加载.env文件"""
@@ -24,12 +25,40 @@ def load_env_file():
                         elif value.startswith("'") and value.endswith("'"):
                             value = value[1:-1]
                         
-                        os.environ[key] = value
+                        if key not in os.environ:
+                            os.environ[key] = value
+                            set_env_source(key, '.env')
+                        else:
+                            if get_env_source(key) == 'missing':
+                                set_env_source(key, 'process_env')
         except Exception as e:
             print(f"加载.env文件失败: {str(e)}")
 
 # 自动加载.env文件
 load_env_file()
+
+def _mask_secret(value: Optional[str]) -> str:
+    if not value:
+        return ""
+    if len(value) <= 6:
+        return "***"
+    return f"{value[:3]}***{value[-3:]}"
+
+
+def summarize_api_configurations(configs: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
+    summary: Dict[str, Dict[str, Any]] = {}
+    for api_name, config in configs.items():
+        env_key = f"{api_name.upper()}_API_KEY"
+        api_key = getattr(config, "api_key", None)
+        summary[api_name] = {
+            "enabled": bool(getattr(config, "enabled", api_key)),
+            "api_key_source": get_env_source(env_key),
+            "api_key_masked": _mask_secret(api_key),
+            "model": getattr(config, "model", None),
+            "base_url": getattr(config, "base_url", None),
+        }
+    return summary
+
 
 class APIConfig:
     """API平台配置基类"""
@@ -79,7 +108,7 @@ class SiliconFlowConfig(APIConfig):
             base_url='https://api.siliconflow.cn/v1',
             api_key=os.environ.get('SILICONFLOW_API_KEY')
         )
-        self.model = 'Qwen/Qwen2.5-7B-Instruct'
+        self.model = os.environ.get('SILICONFLOW_MODEL', 'Pro/zai-org/GLM-4.7')
         self.max_tokens = 2000
 
 class OpenAIConfig(APIConfig):
@@ -198,6 +227,9 @@ class APIManager:
     def get_api_config(self, api_name: str) -> Optional[APIConfig]:
         """获取指定API的配置"""
         return self.apis.get(api_name)
+
+    def get_api_diagnostics(self) -> Dict[str, Dict[str, Any]]:
+        return summarize_api_configurations(self.apis)
     
     def get_primary_api(self) -> Optional[str]:
         """获取主要API（优先级顺序）"""

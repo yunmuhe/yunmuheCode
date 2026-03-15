@@ -5,17 +5,28 @@ Generation record persistence service.
 from __future__ import annotations
 
 import json
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Dict, List, Optional
+from zoneinfo import ZoneInfo
 
 from sqlalchemy import and_, delete, select
 
 from src.db.database import get_engine, get_session_factory, init_db
 from src.db.models import FavoriteRecord, GenerationRecord
 
+BEIJING_TZ = ZoneInfo("Asia/Shanghai")
+
 
 def _to_iso(dt: Optional[datetime]) -> Optional[str]:
     return dt.isoformat() if dt else None
+
+
+def _utc_now() -> datetime:
+    return datetime.now(BEIJING_TZ).replace(microsecond=0, tzinfo=None)
+
+
+def _generate_favorite_uid(item: Dict) -> str:
+    return str(item.get("id") or f"f_{int(datetime.now(UTC).timestamp() * 1000)}")
 
 
 class RecordService:
@@ -162,8 +173,8 @@ class RecordService:
             return [self._favorite_to_item(row) for row in rows]
 
     def upsert_favorite(self, user_id: int, item: Dict) -> Dict:
-        favorite_uid = str(item.get("id") or f"f_{int(datetime.utcnow().timestamp() * 1000)}")
-        now = datetime.utcnow().replace(microsecond=0)
+        favorite_uid = _generate_favorite_uid(item)
+        now = _utc_now()
         with self.SessionLocal() as session:
             row = session.execute(
                 select(FavoriteRecord).where(
@@ -217,7 +228,7 @@ class RecordService:
             return deleted_ids
 
 
-def _build_default_record_service() -> RecordService:
+def _build_default_record_service() -> Optional[RecordService]:
     try:
         return RecordService()
     except Exception:
@@ -225,16 +236,18 @@ def _build_default_record_service() -> RecordService:
 
         url = (os.getenv("DATABASE_URL") or "").strip().lower()
         dialect = (os.getenv("DB_DIALECT") or "").strip().lower()
-        if not (url.startswith("sqlite:") or dialect.startswith("sqlite")):
-            raise
-
-        root_dir = os.path.dirname(
-            os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        )
-        data_dir = os.path.join(root_dir, "data")
-        os.makedirs(data_dir, exist_ok=True)
-        fallback_db = os.path.join(data_dir, "auth_fallback.db")
-        return RecordService(db_url=f"sqlite:///{fallback_db}")
+        if url.startswith("sqlite:") or dialect.startswith("sqlite"):
+            try:
+                root_dir = os.path.dirname(
+                    os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+                )
+                data_dir = os.path.join(root_dir, "data")
+                os.makedirs(data_dir, exist_ok=True)
+                fallback_db = os.path.join(data_dir, "auth_fallback.db")
+                return RecordService(db_url=f"sqlite:///{fallback_db}")
+            except Exception:
+                return None
+        return None
 
 
 record_service = _build_default_record_service()

@@ -10,7 +10,7 @@ import hmac
 import os
 import re
 import secrets
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from typing import Dict, Optional, Tuple
 
 from sqlalchemy import and_, select
@@ -23,7 +23,7 @@ PBKDF2_ITERATIONS = 150000
 
 
 def _utc_now() -> datetime:
-    return datetime.utcnow().replace(microsecond=0)
+    return datetime.now(UTC).replace(microsecond=0, tzinfo=None)
 
 
 def _utc_now_iso() -> str:
@@ -352,20 +352,23 @@ def _is_sqlite_env() -> bool:
     return False
 
 
-def _build_default_auth_service() -> AuthService:
+def _build_default_auth_service() -> Optional[AuthService]:
     try:
         return AuthService()
     except Exception:
         # Only fallback when sqlite is explicitly configured.
-        if not _is_sqlite_env():
-            raise
-        root_dir = os.path.dirname(
-            os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        )
-        data_dir = os.path.join(root_dir, "data")
-        os.makedirs(data_dir, exist_ok=True)
-        fallback_db = os.path.join(data_dir, "auth_fallback.db")
-        return AuthService(db_url=f"sqlite:///{fallback_db}")
+        if _is_sqlite_env():
+            try:
+                root_dir = os.path.dirname(
+                    os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+                )
+                data_dir = os.path.join(root_dir, "data")
+                os.makedirs(data_dir, exist_ok=True)
+                fallback_db = os.path.join(data_dir, "auth_fallback.db")
+                return AuthService(db_url=f"sqlite:///{fallback_db}")
+            except Exception:
+                return None
+        return None
 
 
 auth_service = _build_default_auth_service()
