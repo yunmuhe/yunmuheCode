@@ -1,11 +1,14 @@
-from typing import Dict, Callable
+from typing import Callable, Dict
+
 from ...utils.logging_helper import get_logger
 
 ADAPTER_BUILDERS: Dict[str, Callable] = {}
 logger = get_logger(__name__)
 
+
 def register_adapter(name: str, builder: Callable) -> None:
     ADAPTER_BUILDERS[name] = builder
+
 
 def ensure_adapters_imported() -> None:
     try:
@@ -16,6 +19,10 @@ def ensure_adapters_imported() -> None:
         from . import siliconflow_adapter  # noqa: F401
     except Exception as e:
         logger.warning(f"导入 siliconflow_adapter 失败: {e}")
+    try:
+        from . import baishan_adapter  # noqa: F401
+    except Exception as e:
+        logger.warning(f"baishan_adapter import failed: {e}")
     try:
         from . import openai_adapter  # noqa: F401
     except Exception as e:
@@ -33,11 +40,12 @@ def ensure_adapters_imported() -> None:
     except Exception as e:
         logger.warning(f"导入 aistudio_adapter 失败: {e}")
 
+
 def build_adapters(api_configs: Dict[str, object]) -> Dict[str, object]:
     ensure_adapters_imported()
     result: Dict[str, object] = {}
     for name, config in (api_configs or {}).items():
-        if name in ADAPTER_BUILDERS and getattr(config, 'enabled', False):
+        if name in ADAPTER_BUILDERS and getattr(config, "enabled", False):
             try:
                 adapter = ADAPTER_BUILDERS[name](config)
                 if adapter:
