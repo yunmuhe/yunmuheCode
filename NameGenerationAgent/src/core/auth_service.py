@@ -10,8 +10,9 @@ import hmac
 import os
 import re
 import secrets
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta
 from typing import Dict, Optional, Tuple
+from zoneinfo import ZoneInfo
 
 from sqlalchemy import and_, select
 
@@ -20,10 +21,11 @@ from src.db.models import User, UserToken
 
 PHONE_PATTERN = re.compile(r"^1\d{10}$")
 PBKDF2_ITERATIONS = 150000
+BEIJING_TZ = ZoneInfo("Asia/Shanghai")
 
 
 def _utc_now() -> datetime:
-    return datetime.now(UTC).replace(microsecond=0, tzinfo=None)
+    return datetime.now(BEIJING_TZ).replace(microsecond=0, tzinfo=None)
 
 
 def _utc_now_iso() -> str:
