@@ -351,6 +351,7 @@ const apiLabelMap: Record<string, string> = {
     paiou: "娲炬浜?,
     aistudio: "Aistudio",
     baidu: "鐧惧害鍗冨竼",
+    baishan: "白山智算",
     siliconflow: "SiliconFlow",
     aliyun: "闃块噷浜?,
     mock: "妯℃嫙鎺ュ彛",
@@ -817,4 +818,3 @@ page {
     background-color: rgba(231, 76, 60, 0.1);
 }
 </style>
-
