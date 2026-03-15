@@ -4,6 +4,7 @@
 import os
 import sys
 from src.utils.env_loader import get_env_source, set_env_source
+from src.web.dev_server import get_dev_server_options
 
 # 设置控制台编码为UTF-8
 if sys.platform == 'win32':
@@ -67,7 +68,8 @@ def main():
 
     # 启动Flask应用
     try:
-        from src.web.app import app
+        from src.web.app import app, get_config
+        config = get_config()
         print("[成功] Flask应用启动成功")
         print("[成功] 提示词模板已修复")
         print("[访问] 访问地址: http://localhost:5000")
@@ -83,7 +85,11 @@ def main():
         print("   - 年龄: 儿童/青少年/成年人/长者")
         print("   - 同一描述 + 不同选项 = 不同风格的姓名")
         print("按 Ctrl+C 停止服务")
-        app.run(host='0.0.0.0', port=5000)
+        app.run(
+            host='0.0.0.0',
+            port=5000,
+            **get_dev_server_options(debug=config["default"].DEBUG),
+        )
     except Exception as e:
         print(f"[错误] Flask应用启动失败: {str(e)}")
         import traceback

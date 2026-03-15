@@ -247,7 +247,7 @@ def _build_default_record_service() -> Optional[RecordService]:
                 return RecordService(db_url=f"sqlite:///{fallback_db}")
             except Exception:
                 return None
-        return None
+        raise
 
 
 record_service = _build_default_record_service()
