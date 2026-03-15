@@ -19,6 +19,16 @@ from flask import (
 
 admin_bp = Blueprint("admin", __name__, url_prefix="/admin")
 ADMIN_SESSION_KEY = "admin_user_id"
+API_DISPLAY_NAMES = {
+    "aliyun": "阿里云",
+    "siliconflow": "SiliconFlow",
+    "baishan": "白山智算",
+    "paiou": "派欧云",
+    "aistudio": "AI Studio",
+    "openai": "OpenAI",
+    "gemini": "Gemini",
+    "mock": "模拟接口",
+}
 
 
 def _auth_service():
@@ -31,6 +41,13 @@ def _record_service():
     import src.core.record_service as record_module
 
     return record_module.record_service
+
+
+def _display_api_name(api_name: str) -> str:
+    raw = (api_name or "").strip()
+    if not raw:
+        return "-"
+    return API_DISPLAY_NAMES.get(raw, raw)
 
 
 def _current_admin_user():
@@ -82,7 +99,9 @@ def login():
     password = request.form.get("password") or ""
     success, payload, _ = _auth_service().login_user(phone=phone, password=password)
     if not success:
-        return render_template("admin/login.html", error=payload.get("error") or "登录失败"), 401
+        return render_template(
+            "admin/login.html", error=payload.get("error") or "登录失败"
+        ), 401
 
     user = payload.get("user") or {}
     token = payload.get("token") or ""
@@ -167,6 +186,12 @@ def user_detail(user_id: int):
         page=page,
         page_size=page_size,
     )
+    items = []
+    for item in records_result.get("items", []):
+        enriched = dict(item)
+        enriched["api_display_name"] = _display_api_name(item.get("api_name", ""))
+        items.append(enriched)
+    records_result = {**records_result, "items": items}
 
     return render_template(
         "admin/user_detail.html",

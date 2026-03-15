@@ -1,0 +1,193 @@
+<!doctype html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>用户详情</title>
+        <style>
+            body {
+                font-family: "Microsoft YaHei", sans-serif;
+                background: #f6f8fa;
+                margin: 0;
+            }
+            .wrap {
+                max-width: 1080px;
+                margin: 20px auto;
+                background: #fff;
+                border-radius: 10px;
+                padding: 16px;
+                box-shadow: 0 8px 20px rgba(0, 0, 0, 0.06);
+            }
+            .top {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+            }
+            .top a {
+                color: #1677ff;
+                text-decoration: none;
+            }
+            .meta {
+                margin: 10px 0;
+                padding: 10px;
+                background: #fafafa;
+                border: 1px solid #eee;
+                border-radius: 8px;
+            }
+            .actions {
+                display: flex;
+                gap: 8px;
+                margin-bottom: 10px;
+            }
+            button {
+                height: 34px;
+                border-radius: 6px;
+                border: none;
+                padding: 0 12px;
+                cursor: pointer;
+                color: #fff;
+            }
+            .btn-on {
+                background: #237804;
+            }
+            .btn-off {
+                background: #a8071a;
+            }
+            .btn-reset {
+                background: #d46b08;
+            }
+            .filters {
+                display: flex;
+                gap: 8px;
+                margin-bottom: 10px;
+            }
+            input,
+            .filters button {
+                height: 34px;
+                border: 1px solid #d0d7de;
+                border-radius: 6px;
+                padding: 0 8px;
+                box-sizing: border-box;
+            }
+            .filters button {
+                background: #1677ff;
+                color: #fff;
+                border: none;
+            }
+            table {
+                width: 100%;
+                border-collapse: collapse;
+            }
+            th,
+            td {
+                border-bottom: 1px solid #eee;
+                text-align: left;
+                padding: 8px;
+                font-size: 14px;
+                vertical-align: top;
+            }
+            .small {
+                color: #666;
+                font-size: 12px;
+            }
+            .del {
+                background: #cf1322;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="wrap">
+            <div class="top">
+                <h1>用户详情</h1>
+                <a href="{{ url_for('admin.dashboard') }}">返回列表</a>
+            </div>
+
+            <div class="meta">
+                <div>用户ID: {{ user.id }}</div>
+                <div>手机号: {{ user.phone }}</div>
+                <div>角色: {{ user.role }}</div>
+                <div>状态: {{ '启用' if user.is_enabled else '禁用' }}</div>
+                <div>
+                    强制改密: {{ '是' if user.must_change_password else '否' }}
+                </div>
+            </div>
+
+            <div class="actions">
+                {% if user.is_enabled %}
+                <form
+                    method="post"
+                    action="{{ url_for('admin.disable_user', user_id=user.id) }}"
+                >
+                    <button class="btn-off" type="submit">禁用用户</button>
+                </form>
+                {% else %}
+                <form
+                    method="post"
+                    action="{{ url_for('admin.enable_user', user_id=user.id) }}"
+                >
+                    <button class="btn-on" type="submit">启用用户</button>
+                </form>
+                {% endif %}
+                <form
+                    method="post"
+                    action="{{ url_for('admin.reset_user_password', user_id=user.id) }}"
+                >
+                    <button class="btn-reset" type="submit">
+                        重置密码(123456)
+                    </button>
+                </form>
+            </div>
+
+            <form class="filters" method="get">
+                <input type="date" name="start" value="{{ filters.start }}" />
+                <input type="date" name="end" value="{{ filters.end }}" />
+                <button type="submit">按时间筛选</button>
+            </form>
+
+            <table>
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>时间</th>
+                        <th>描述</th>
+                        <th>结果</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in records_result['items'] %}
+                    <tr>
+                        <td>{{ item.id }}</td>
+                        <td>{{ item.time }}</td>
+                        <td>{{ item.description }}</td>
+                        <td>
+                            {% for name in item.names %}
+                            <div>{{ name }}</div>
+                            {% endfor %}
+                            <div class="small">
+                                API: {{ item.api_display_name or '-' }} / Model:
+                                {{ item.model or '-' }}
+                            </div>
+                        </td>
+                        <td>
+                            <form
+                                method="post"
+                                action="{{ url_for('admin.delete_record', record_id=item.id) }}"
+                            >
+                                <input
+                                    type="hidden"
+                                    name="user_id"
+                                    value="{{ user.id }}"
+                                />
+                                <button class="del" type="submit">
+                                    删除记录
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </body>
+</html>
