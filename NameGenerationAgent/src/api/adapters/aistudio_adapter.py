@@ -1,165 +1,115 @@
-from typing import Dict, Any, List
-from .base_adapter import BaseAPIAdapter
-from . import register_adapter
+import json
+from typing import Any, Dict, List
 
-class AistudioAdapter(BaseAPIAdapter):
-    def __init__(self, config):
-        super().__init__(config)
-        try:
-            from openai import OpenAI
-            self.client = OpenAI(api_key=config.api_key, base_url=config.base_url)
-        except Exception as e:
-            print("[AistudioAdapter] OpenAI客户端初始化失败:", e)
-        # 不使用__name__，不存储日志器，初始化只使用print提示
+from . import register_adapter
+from .openai_compatible_adapter import OpenAICompatibleAdapter
+
+
+class AistudioAdapter(OpenAICompatibleAdapter):
+    system_prompt = "你是一个专业的姓名生成专家。"
 
     def list_models(self) -> List[Dict[str, Any]]:
-        """获取AI Studio可用的模型列表"""
         if not self.is_available():
             return []
 
-        current_model = getattr(self.config, 'model', 'Qwen3-30B-A3B-Q4_K_M')
+        current_model = getattr(self.config, "model", "Qwen3-30B-A3B-Q4_K_M")
         return [
             {
-                'id': current_model,
-                'name': current_model,
-                'description': f'AI Studio {current_model}',
-                'is_default': True,
-            },
+                "id": current_model,
+                "name": current_model,
+                "description": f"AI Studio {current_model}",
+                "is_default": True,
+            }
         ]
 
-    def generate_names(self, prompt, count=5, **kwargs):
-        completion_params = self.config.get_completion_params()
-        model = kwargs.get("model", completion_params["model"])
-        messages = [
-            {"role": "system", "content": "你是一个专业的姓名生成专家。"},
-            {"role": "user", "content": prompt}
-        ]
-        stream = kwargs.get("stream", completion_params["stream"])
-        temperature = kwargs.get("temperature", 0.7)
-        response_format = kwargs.get("response_format", completion_params.get("response_format"))
+    def _resolve_stream(self, kwargs: Dict[str, Any]) -> bool:
+        return bool(kwargs.get("stream", getattr(self.config, "stream", True)))
 
-        def _do_request(curr_model):
-            params = dict(
-                model=curr_model,
-                messages=messages,
-                stream=stream,
-                max_tokens=completion_params["max_tokens"],
-                temperature=temperature
-            )
-            if response_format:
-                params["response_format"] = response_format
-            return self.client.chat.completions.create(**params)
+    def _provider_completion_params(self, **kwargs) -> Dict[str, Any]:
+        params = super()._provider_completion_params(**kwargs)
+        response_format = kwargs.get(
+            "response_format", getattr(self.config, "response_format", None)
+        )
+        if response_format:
+            params["response_format"] = response_format
+        return params
 
+    def _should_fallback(self, error_message: str) -> bool:
+        return ("暂不支持该模型" in error_message) or ("40405" in error_message)
+
+    def _extract_stream_chunk_text(self, chunk: Any) -> str:
+        choices = getattr(chunk, "choices", None) or []
+        if not choices:
+            return ""
+        delta = getattr(choices[0], "delta", None)
+        return (
+            getattr(delta, "reasoning_content", None)
+            or getattr(delta, "content", None)
+            or ""
+        )
+
+    def _parse_generated_text(self, text: str):
+        return self._parse_structured_or_text(text)
+
+    def _parse_structured_or_text(self, text: str):
         try:
-            response = _do_request(model)
-        except Exception as e:
-            msg = str(e)
-            if ("暂不支持该模型" in msg) or ("40405" in msg):
-                fallback_model = getattr(self.config, "fallback_models", ["Qwen3-30B-A3B-Q4_K_M"])[0]
-                try:
-                    response = _do_request(fallback_model)
-                    model = fallback_model
-                except Exception as e2:
-                    raise e2
-            else:
-                raise
-
-        if stream:
-            generated_text = ""
-            for chunk in response:
-                content = ""
-                if hasattr(chunk.choices[0].delta, "reasoning_content") and chunk.choices[0].delta.reasoning_content:
-                    content = chunk.choices[0].delta.reasoning_content
-                else:
-                    content = chunk.choices[0].delta.content
-                if content:
-                    generated_text += content
-            names = self._parse_structured_or_text(generated_text)
-            return {
-                "success": True,
-                "names": names,
-                "raw_response": generated_text,
-                "api_name": self.name,
-                "model": model,
-                "stream": True
-            }
-        else:
-            content = response.choices[0].message.content
-            names = self._parse_structured_or_text(content)
-            return {
-                "success": True,
-                "names": names,
-                "raw_response": content,
-                "api_name": self.name,
-                "model": model,
-                "stream": False
-            }
-
-    def _parse_structured_or_text(self, text):
-        try:
-            import json
             obj = json.loads(text)
-            items = obj.get("items") or obj.get("names") or obj.get("data") or []
-            result = []
-            for it in items:
-                n = (it.get("name") or "").strip()
-                m = (it.get("meaning") or "").strip()
-                if n and m and self._is_valid_name(n) and self._is_valid_meaning(m):
-                    result.append({"name": n, "meaning": m, "source": "aistudio"})
-            if result:
-                return result
         except Exception:
-            pass
-        return self._parse_names(text)
+            return self._parse_names(text)
 
-    def _parse_names(self, text):
+        items = obj.get("items") or obj.get("names") or obj.get("data") or []
+        result = []
+        for item in items:
+            name = (item.get("name") or "").strip()
+            meaning = (item.get("meaning") or "").strip()
+            if name and meaning and self._is_valid_name(name) and self._is_valid_meaning(meaning):
+                result.append({"name": name, "meaning": meaning, "source": "aistudio"})
+        return result or self._parse_names(text)
+
+    def _parse_names(self, text: str):
         names = []
         import re
-        lines = text.strip().split('\n')
-        for line in lines:
+
+        for line in text.strip().split("\n"):
             line = line.strip()
             if not self._is_candidate_line(line):
                 continue
-            m = re.search(r'\d+\.?\s*姓名[：:]{0,1}\s*([\u4e00-\u9fa5a-zA-Z]+)[\s\-–—]+(.+)', line)
-            if m:
-                name, meaning = m.group(1).strip(), m.group(2).strip()
+            patterns = [
+                r"\d+\.?\s*姓名[：:]?\s*([\u4e00-\u9fa5a-zA-Z]+)[\s\-—–]+(.+)",
+                r"\d+\.?\s*([\u4e00-\u9fa5a-zA-Z]+)[\s\-—–]+(.+)",
+            ]
+            for pattern in patterns:
+                match = re.search(pattern, line)
+                if not match:
+                    continue
+                name, meaning = match.group(1).strip(), match.group(2).strip()
                 if self._is_valid_name(name) and self._is_valid_meaning(meaning):
                     names.append({"name": name, "meaning": meaning, "source": "aistudio"})
-                continue
-            m2 = re.search(r'\d+\.?\s*([\u4e00-\u9fa5a-zA-Z]+)[\s\-–—]+(.+)', line)
-            if m2:
-                name, meaning = m2.group(1).strip(), m2.group(2).strip()
-                if self._is_valid_name(name) and self._is_valid_meaning(meaning):
-                    names.append({"name": name, "meaning": meaning, "source": "aistudio"})
-                continue
+                break
         return names
 
     def _is_candidate_line(self, line: str) -> bool:
         if not line:
             return False
-        bad = ["例如", "示例", "参考", "格式", "输出", "要求", "System", "system", "提示", "说明"]
-        for b in bad:
-            if b in line:
-                return False
-        return True
+        bad_tokens = ["例如", "示例", "参考", "格式", "输出", "要求", "System", "system", "提示", "说明"]
+        return not any(token in line for token in bad_tokens)
 
     def _is_valid_name(self, name: str) -> bool:
         import re
-        if not name:
-            return False
-        if name in ["例如", "示例", "参考"]:
+
+        if not name or name in ["例如", "示例", "参考"]:
             return False
         if len(name) < 2 or len(name) > 10:
             return False
-        return bool(re.search(r'[\u4e00-\u9fa5]', name))
+        return bool(re.search(r"[\u4e00-\u9fa5]", name))
 
     def _is_valid_meaning(self, meaning: str) -> bool:
         if not meaning:
             return False
-        bad = ["根据角色描述生成", "示例", "例如", "参考", "格式"]
-        for b in bad:
-            if b in meaning:
-                return False
+        bad_tokens = ["根据角色描述生成", "示例", "例如", "参考", "格式"]
+        if any(token in meaning for token in bad_tokens):
+            return False
         return len(meaning) >= 2
+
 
 register_adapter("aistudio", lambda cfg: AistudioAdapter(cfg))

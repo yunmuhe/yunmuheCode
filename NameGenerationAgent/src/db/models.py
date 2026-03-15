@@ -5,6 +5,7 @@ SQLAlchemy models for authentication and generation records.
 from __future__ import annotations
 
 from datetime import datetime
+from zoneinfo import ZoneInfo
 
 from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -12,8 +13,11 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from .database import Base
 
 
+BEIJING_TZ = ZoneInfo("Asia/Shanghai")
+
+
 def utc_now() -> datetime:
-    return datetime.utcnow().replace(microsecond=0)
+    return datetime.now(BEIJING_TZ).replace(microsecond=0, tzinfo=None)
 
 
 class User(Base):

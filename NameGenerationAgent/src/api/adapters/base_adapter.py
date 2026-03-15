@@ -1,18 +1,20 @@
 """
-API适配器基类
+API 适配器基类。
 """
+
 from abc import ABC, abstractmethod
-from typing import Dict, Any, Optional, List
+from typing import Any, Dict, List
 import re
+
 import requests
-import json
-import time
+
 from ...utils.logging_helper import get_logger
 
 logger = get_logger(__name__)
 
+
 class BaseAPIAdapter(ABC):
-    """API适配器基类"""
+    """API 适配器基类。"""
 
     def __init__(self, config):
         self.config = config
@@ -23,144 +25,158 @@ class BaseAPIAdapter(ABC):
 
     @abstractmethod
     def generate_names(self, prompt: str, **kwargs) -> Dict[str, Any]:
-        """生成姓名"""
-        pass
+        """生成姓名。"""
 
     def list_models(self) -> List[Dict[str, Any]]:
-        """
-        获取平台可用的模型列表
+        """返回默认模型列表。"""
+        default_model = getattr(self.config, "model", None)
+        if not default_model:
+            return []
+        return [
+            {
+                "id": default_model,
+                "name": default_model,
+                "description": f"{self.name}默认模型",
+                "is_default": True,
+            }
+        ]
 
-        Returns:
-            List[Dict]: 模型列表，每个模型包含:
-                - id: 模型ID
-                - name: 模型显示名称
-                - description: 模型描述（可选）
-                - capabilities: 模型能力标签（可选）
-        """
-        # 默认实现：返回配置中的默认模型
-        default_model = getattr(self.config, 'model', None)
-        if default_model:
-            return [{
-                'id': default_model,
-                'name': default_model,
-                'description': f'{self.name}默认模型',
-                'is_default': True
-            }]
-        return []
-
-    def _make_request(self, endpoint: str, data: Dict[str, Any],
-                     timeout: int = 30, method: str = 'POST') -> Dict[str, Any]:
-        """发送HTTP请求"""
+    def _make_request(
+        self, endpoint: str, data: Dict[str, Any], timeout: int = 30, method: str = "POST"
+    ) -> Dict[str, Any]:
+        """发送 HTTP 请求。timeout 为读取超时，连接超时固定 10 秒。"""
         url = f"{self.base_url}/{endpoint}"
         headers = self.config.get_headers()
+        # (连接超时, 读取超时) 分开设置
+        req_timeout = (10, timeout)
 
         try:
             logger.info(f"发送请求到 {self.name}: {url}")
-            if method.upper() == 'GET':
-                response = requests.get(
-                    url,
-                    headers=headers,
-                    timeout=timeout
-                )
+            if method.upper() == "GET":
+                response = requests.get(url, headers=headers, timeout=req_timeout)
             else:
-                response = requests.post(
-                    url,
-                    headers=headers,
-                    json=data,
-                    timeout=timeout
-                )
+                response = requests.post(url, headers=headers, json=data, timeout=req_timeout)
             response.raise_for_status()
             return response.json()
-
-        except requests.exceptions.RequestException as e:
-            logger.error(f"{self.name} API请求失败: {str(e)}")
-            raise APIException(f"{self.name} API请求失败: {str(e)}")
+        except requests.exceptions.RequestException as exc:
+            logger.error(f"{self.name} API请求失败: {exc}")
+            raise APIException(f"{self.name} API请求失败: {exc}") from exc
 
     def is_available(self) -> bool:
-        """检查API是否可用"""
+        """检查 API 是否可用。"""
         return self.enabled and bool(self.api_key)
 
     def _parse_names(self, text: str) -> List[Dict[str, str]]:
         """
-        通用姓名解析方法
+        通用姓名解析方法。
 
-        支持以下格式：
-        - 数字. 姓名：xxx - 含义
-        - 数字. xxx：含义
-        - 数字. xxx - 含义（dash 分隔）
-        - 姓名：xxx - 含义
-        - xxx：含义
-
-        子类可重写此方法以实现自定义解析逻辑。
-
-        Returns:
-            解析出的姓名列表
+        支持：
+        - `1. 姓名：寓意`
+        - `姓名：...` + `寓意：...`
+        - `1. 姓名 - 寓意`
         """
-        names = []
-        lines = text.strip().split('\n')
+        names: List[Dict[str, str]] = []
+        pending_name = ""
 
-        for line in lines:
-            line = line.strip()
+        for raw_line in text.strip().split("\n"):
+            line = raw_line.strip()
             if not line:
                 continue
 
-            # 策略1：冒号分隔
-            if '：' in line or ':' in line:
-                try:
-                    separator = '：' if '：' in line else ':'
-                    parts = line.split(separator, 1)
+            labeled = self._parse_labeled_line(line)
+            if labeled:
+                label, value = labeled
+                if label == "name":
+                    pending_name = value
+                    continue
+                if label == "meaning" and pending_name:
+                    names.append(
+                        {
+                            "name": pending_name,
+                            "meaning": value,
+                            "source": self.name,
+                        }
+                    )
+                    pending_name = ""
+                    continue
 
-                    if len(parts) < 2:
-                        continue
+            colon_match = self._split_line(line)
+            if colon_match:
+                name_part, meaning_part = colon_match
+                name = self._clean_name_prefix(name_part)
+                if name and meaning_part and 2 <= len(name) <= 10:
+                    names.append(
+                        {
+                            "name": name,
+                            "meaning": meaning_part,
+                            "source": self.name,
+                        }
+                    )
+                    continue
 
-                    name_part = parts[0].strip()
-                    meaning_part = parts[1].strip()
-
-                    name = self._clean_name_prefix(name_part)
-
-                    if name and meaning_part and 2 <= len(name) <= 10:
-                        names.append({
-                            'name': name,
-                            'meaning': meaning_part,
-                            'source': self.name,
-                        })
-                        continue
-                except Exception:
-                    pass
-
-            # 策略2：dash 分隔（如 "1. 苏映雪 - 寓意如映雪般纯净"）
-            dash_match = re.search(r'^(.+?)\s*[-–—]\s*(.+)$', line)
+            dash_match = re.search(r"^(.+?)\s*[-—–]\s*(.+)$", line)
             if dash_match:
-                try:
-                    name_part = dash_match.group(1).strip()
-                    meaning_part = dash_match.group(2).strip()
-
-                    name = self._clean_name_prefix(name_part)
-
-                    if name and meaning_part and 2 <= len(name) <= 10:
-                        names.append({
-                            'name': name,
-                            'meaning': meaning_part,
-                            'source': self.name,
-                        })
-                except Exception:
-                    pass
+                name = self._clean_name_prefix(dash_match.group(1).strip())
+                meaning = self._clean_text(dash_match.group(2))
+                if name and meaning and 2 <= len(name) <= 10:
+                    names.append(
+                        {
+                            "name": name,
+                            "meaning": meaning,
+                            "source": self.name,
+                        }
+                    )
 
         return names
 
+    @classmethod
+    def _split_line(cls, line: str):
+        cleaned = cls._clean_text(line)
+        if "：" in cleaned:
+            parts = cleaned.split("：", 1)
+        elif ":" in cleaned:
+            parts = cleaned.split(":", 1)
+        else:
+            return None
+        if len(parts) < 2:
+            return None
+        return parts[0].strip(), parts[1].strip()
+
+    @classmethod
+    def _clean_name_prefix(cls, raw: str) -> str:
+        """清理姓名前缀、编号、标签和 Markdown 标记。"""
+        name = cls._clean_text(raw)
+        name = re.sub(r"^\d+[.\u3001\)\s]*", "", name).strip()
+        lowered = name.lower()
+
+        for prefix in ("姓名", "名字"):
+            if name.startswith(prefix):
+                name = name[len(prefix) :].strip()
+        if lowered.startswith("name"):
+            name = name[4:].strip()
+
+        return name.replace("：", "").replace(":", "").strip()
+
     @staticmethod
-    def _clean_name_prefix(raw: str) -> str:
-        """清理姓名前缀（序号、'姓名'标签、冒号等）"""
-        name = raw.strip()
-        # 先剥离序号（如 "1." "2、" "3)" "4）"）
-        name = re.sub(r'^\d+[.、)）]\s*', '', name).strip()
-        # 再剥离"姓名"前缀
-        if name.startswith('姓名'):
-            name = name[2:].strip()
-        # 清理残余冒号
-        name = name.replace('：', '').replace(':', '').strip()
-        return name
+    def _clean_text(value: str) -> str:
+        return value.replace("**", "").replace("*", "").strip()
+
+    @classmethod
+    def _parse_labeled_line(cls, line: str):
+        parts = cls._split_line(line)
+        if not parts:
+            return None
+
+        label, value = parts
+        normalized = re.sub(r"^\d+[.\u3001\)\s]*", "", label).strip().lower()
+
+        if normalized in {"姓名", "名字", "name"}:
+            return "name", value
+        if normalized in {"寓意", "含义", "解释", "meaning"}:
+            return "meaning", value
+        return None
+
 
 class APIException(Exception):
-    """API异常"""
-    pass
+    """API 异常。"""
+
