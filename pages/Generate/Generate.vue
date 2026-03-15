@@ -1,4 +1,4 @@
-<template>
+﻿<template>
 	<view class="generate-page">
 		<!-- 顶部导航栏 -->
 		<view class="nav-bar">
@@ -59,7 +59,13 @@
 						<text class="option-value">{{ currentApiLabel }}</text>
 					</view>
 				</picker>
-				<picker mode="selector" :range="modelLabels" :value="modelIndex" @change="handleModelChange" :disabled="loadingModels || !availableModels.length">
+				<picker
+					mode="selector"
+					:range="modelLabels"
+					:value="modelIndex"
+					@change="handleModelChange"
+					:disabled="loadingModels || !availableModels.length"
+				>
 					<view class="option-item" :class="{ disabled: loadingModels || !availableModels.length }">
 						<text class="option-label">模型</text>
 						<text class="option-value">{{ currentModelLabel }}</text>
@@ -97,7 +103,7 @@
 						<view class="message-bubble">
 							<text class="message-text">为您推荐以下{{ generatedNames.length }}个姓名：</text>
 							<view class="meta-info" v-if="apiMeta.apiName || apiMeta.model">
-								<text v-if="apiMeta.apiName">API：{{ apiMeta.apiName }}</text>
+								<text v-if="apiMeta.apiName">API：{{ formatApiLabel(apiMeta.apiName) }}</text>
 								<text v-if="apiMeta.model">模型：{{ apiMeta.model }}</text>
 							</view>
 						</view>
@@ -107,15 +113,18 @@
 									<text class="name-text">{{ name.name }}</text>
 									<view class="actions">
 										<button class="action-btn" @click="toggleFavorite(index)">
-											<uni-icons :type="name.isFavorite ? 'heart-filled' : 'heart'" size="20"
-												:color="name.isFavorite ? '#ff6b6b' : '#999'"></uni-icons>
+											<uni-icons
+												:type="name.isFavorite ? 'heart-filled' : 'heart'"
+												size="20"
+												:color="name.isFavorite ? '#ff6b6b' : '#999'"
+											></uni-icons>
 										</button>
 									</view>
 								</view>
 								<text class="meaning-text">{{ name.meaning }}</text>
 								<view class="tags">
 									<view class="tag">{{ name.style }}</view>
-									<view class="tag" v-if="name.source">来源：{{ name.source }}</view>
+									<view class="tag" v-if="name.source">来源：{{ formatApiLabel(name.source) }}</view>
 								</view>
 								<view class="features" v-if="name.features && Object.keys(name.features).length">
 									<text class="feature-pill" v-for="(value, key) in name.features" :key="key">
@@ -135,8 +144,13 @@
 		<!-- 底部输入区域 -->
 		<view class="input-area">
 			<view class="input-container">
-				<textarea v-model="description" placeholder="请输入您希望生成姓名的相关描述..." class="description-input"
-					:auto-height="true" maxlength="500" />
+				<textarea
+					v-model="description"
+					placeholder="请输入您希望生成姓名的相关描述..."
+					class="description-input"
+					:auto-height="true"
+					maxlength="500"
+				/>
 				<view class="char-count">{{ description.length }}/500</view>
 			</view>
 			<button class="send-btn" @click="handleGenerate" :disabled="!description.trim() || isGenerating">
@@ -233,9 +247,15 @@
 		paiou: '派欧云',
 		aistudio: 'Aistudio',
 		baidu: '百度千帆',
+		baishan: '白山智算',
 		siliconflow: 'SiliconFlow',
 		aliyun: '阿里云',
 		mock: '模拟接口',
+	};
+
+	const formatApiLabel = (apiName?: string) => {
+		if (!apiName) return '';
+		return apiLabelMap[apiName] || apiName;
 	};
 
 	const styleLabels = computed(() => availableStyles.value.map((style) => styleLabelMap[style] || style));

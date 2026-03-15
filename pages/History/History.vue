@@ -1,6 +1,5 @@
 <template>
 	<view class="history-page">
-		<!-- 顶部导航栏 -->
 		<view class="nav-bar">
 			<button class="back-btn" @click="goBack">
 				<uni-icons type="arrowleft" size="24" color="#333"></uni-icons>
@@ -9,12 +8,16 @@
 			<view class="placeholder"></view>
 		</view>
 
-		<!-- 顶部筛选栏 -->
 		<view class="filter-bar">
 			<view class="search-box">
 				<uni-icons type="search" size="20" color="#999"></uni-icons>
-				<input class="search-input" placeholder="搜索描述内容" placeholder-style="color:#999;font-size:14px"
-					v-model="searchText" @confirm="handleSearch" />
+				<input
+					class="search-input"
+					placeholder="搜索描述内容"
+					placeholder-style="color:#999;font-size:14px"
+					v-model="searchText"
+					@confirm="handleSearch"
+				/>
 			</view>
 			<view class="filter-options">
 				<picker mode="selector" :range="timeRange" range-key="label" @change="handleTimeChange">
@@ -32,38 +35,45 @@
 			</view>
 		</view>
 
-		<!-- 历史记录列表 -->
-		<scroll-view class="history-list" scroll-y @scrolltolower="loadMore" :style="{height: scrollHeight + 'px'}">
-			<!-- 空状态 -->
+		<scroll-view
+			class="history-list"
+			scroll-y
+			@scrolltolower="loadMore"
+			:style="{ height: scrollHeight + 'px' }"
+		>
 			<view class="empty-state" v-if="historyList.length === 0">
-				<image class="empty-image"
+				<image
+					class="empty-image"
 					src="https://ai-public.mastergo.com/ai/img_res/adc2c67b429ff3c75b0aad8484dc1139.jpg"
-					mode="aspectFit" />
+					mode="aspectFit"
+				/>
 				<view class="empty-text">暂无历史记录，快去生成页创造属于你的名字吧！</view>
 				<button class="empty-btn" type="primary" @click="goToGenerate">去生成名字</button>
 			</view>
 
-			<!-- 分组列表 -->
 			<template v-for="(group, index) in groupedList" :key="index">
 				<view class="time-group" v-if="group.items.length > 0">
 					<text class="group-title">{{ group.title }}</text>
-					<view class="history-item" v-for="(item, i) in group.items" :key="i" @click="toggleExpand(item)">
-						<view class="item-content">
-							<text class="item-desc" :class="{expanded: item.expanded}">
-								{{ item.description }}
-							</text>
-							<view class="item-meta">
-								<text class="item-time">{{ formatTime(item.time) }}</text>
-								<text class="item-count">生成 {{ item.count }} 个</text>
+					<view v-for="(item, i) in group.items" :key="i">
+						<view class="history-item" @click="toggleExpand(item)">
+							<view class="item-content">
+								<text class="item-desc" :class="{ expanded: item.expanded }">
+									{{ item.description }}
+								</text>
+								<view class="item-meta">
+									<text class="item-time">{{ formatTime(item.time) }}</text>
+									<text class="item-count">生成 {{ item.count }} 个</text>
+								</view>
 							</view>
+							<uni-icons
+								:type="item.expanded ? 'arrowup' : 'arrowdown'"
+								size="16"
+								color="#999"
+							></uni-icons>
 						</view>
-						<uni-icons :type="item.expanded ? 'arrowup' : 'arrowdown'" size="16" color="#999"></uni-icons>
-					</view>
 
-					<!-- 展开内容 -->
-					<view v-for="(historyItem, itemIdx) in group.items" :key="'expanded-'+itemIdx">
-						<view class="expanded-content" v-if="historyItem.expanded">
-							<view class="name-item" v-for="(name, n) in historyItem.names" :key="n">
+						<view class="expanded-content" v-if="item.expanded">
+							<view class="name-item" v-for="(name, n) in item.names" :key="n">
 								<text>{{ name }}</text>
 							</view>
 						</view>
@@ -71,7 +81,6 @@
 				</view>
 			</template>
 
-			<!-- 加载更多 -->
 			<view class="load-more" v-if="historyList.length > 0 && !noMore">
 				<text>{{ loading ? '加载中...' : '上拉加载更多' }}</text>
 			</view>
@@ -80,12 +89,11 @@
 </template>
 
 <script lang="ts" setup>
-	import { ref, computed, onMounted } from 'vue';
+	import { computed, ref } from 'vue';
 	import { onLoad } from '@dcloudio/uni-app';
 	import { getHistoryList } from '../../common/api';
 	import uniIcons from '@/uni_modules/uni-icons/components/uni-icons/uni-icons.vue';
 
-	// 筛选选项
 	const timeRange = ref([
 		{ label: '今天', value: 1 },
 		{ label: '近7天', value: 7 },
@@ -97,7 +105,6 @@
 		{ label: '按数量', value: 'count' }
 	]);
 
-	// 数据状态
 	const timeIndex = ref(0);
 	const sortIndex = ref(0);
 	const searchText = ref('');
@@ -108,7 +115,6 @@
 	const pageSize = ref(10);
 	const scrollHeight = ref(0);
 
-	// 计算分组后的列表
 	const groupedList = computed(() => {
 		const today = new Date();
 		today.setHours(0, 0, 0, 0);
@@ -122,7 +128,7 @@
 			{ title: '更早', items: [] as any[] }
 		];
 
-		historyList.value.forEach(item => {
+		historyList.value.forEach((item) => {
 			const itemDate = new Date(item.time);
 			if (itemDate >= today) {
 				groups[0].items.push(item);
@@ -136,29 +142,29 @@
 		return groups;
 	});
 
-	// 初始化
 	onLoad(() => {
 		getSystemInfo();
 		fetchHistory();
 	});
 
-	// 获取系统信息计算滚动高度
 	const getSystemInfo = () => {
 		uni.getSystemInfo({
 			success: (res) => {
 				const query = uni.createSelectorQuery();
-				query.select('.filter-bar').boundingClientRect(data => {
-					if (data) {
-						scrollHeight.value = res.windowHeight - data.height - 44; // 减去导航栏高度
-					} else {
-						scrollHeight.value = res.windowHeight - 100; // 默认值
-					}
-				}).exec();
+				query
+					.select('.filter-bar')
+					.boundingClientRect((data) => {
+						if (data) {
+							scrollHeight.value = res.windowHeight - data.height - 44;
+						} else {
+							scrollHeight.value = res.windowHeight - 100;
+						}
+					})
+					.exec();
 			}
 		});
 	};
 
-	// 获取历史记录
 	const fetchHistory = async () => {
 		if (loading.value || noMore.value) return;
 		loading.value = true;
@@ -169,7 +175,7 @@
 				q: searchText.value.trim(),
 			});
 			if (res.success) {
-				const items = (res.items || []).map((it : any) => ({
+				const items = (res.items || []).map((it: any) => ({
 					...it,
 					expanded: false,
 					time: new Date(it.time).getTime()
@@ -189,50 +195,43 @@
 		}
 	};
 
-	// 处理搜索
 	const handleSearch = () => {
 		page.value = 1;
 		noMore.value = false;
 		fetchHistory();
 	};
 
-	// 处理时间筛选
-	const handleTimeChange = (e : any) => {
+	const handleTimeChange = (e: any) => {
 		timeIndex.value = e.detail.value;
 		page.value = 1;
 		noMore.value = false;
 		fetchHistory();
 	};
 
-	// 处理排序
-	const handleSortChange = (e : any) => {
+	const handleSortChange = (e: any) => {
 		sortIndex.value = e.detail.value;
 		page.value = 1;
 		noMore.value = false;
 		fetchHistory();
 	};
 
-	// 切换展开状态
-	const toggleExpand = (item : any) => {
+	const toggleExpand = (item: any) => {
 		item.expanded = !item.expanded;
 	};
 
-	// 加载更多
 	const loadMore = () => {
 		fetchHistory();
 	};
 
-	// 格式化时间
-	const formatTime = (timestamp : number) => {
+	const formatTime = (timestamp: number) => {
 		const date = new Date(timestamp);
 		return `${date.getFullYear()}-${padZero(date.getMonth() + 1)}-${padZero(date.getDate())} ${padZero(date.getHours())}:${padZero(date.getMinutes())}`;
 	};
 
-	const padZero = (num : number) => {
+	const padZero = (num: number) => {
 		return num < 10 ? `0${num}` : num;
 	};
 
-	// 跳转到生成页面
 	const goToGenerate = () => {
 		uni.navigateTo({
 			url: '/pages/Generate/Generate'
@@ -290,7 +289,6 @@
 		width: 30px;
 	}
 
-	/* 筛选栏 */
 	.filter-bar {
 		background-color: #fff;
 		padding: 20rpx 30rpx;
@@ -328,7 +326,6 @@
 		border-radius: 30rpx;
 	}
 
-	/* 历史记录列表 */
 	.history-list {
 		flex: 1;
 		overflow: auto;
@@ -387,7 +384,6 @@
 		margin-right: 20rpx;
 	}
 
-	/* 展开内容 */
 	.expanded-content {
 		background-color: #fff;
 		border-radius: 0 0 16rpx 16rpx;
@@ -408,7 +404,6 @@
 		border-bottom: none;
 	}
 
-	/* 空状态 */
 	.empty-state {
 		display: flex;
 		flex-direction: column;
@@ -444,7 +439,6 @@
 		margin: 0;
 	}
 
-	/* 加载更多 */
 	.load-more {
 		text-align: center;
 		font-size: 26rpx;

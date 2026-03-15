@@ -4,6 +4,15 @@ declare const uni: any;
 const BASE_URL =
   (typeof process !== "undefined" && process?.env?.VITE_API_BASE_URL) ||
   "http://127.0.0.1:5000";
+const DEFAULT_REQUEST_TIMEOUT_MS = 120000;
+const REQUEST_TIMEOUT_MS = (() => {
+  const raw =
+    typeof process !== "undefined" ? process?.env?.VITE_API_TIMEOUT_MS : undefined;
+  const parsed = Number(raw);
+  return Number.isFinite(parsed) && parsed > 0
+    ? parsed
+    : DEFAULT_REQUEST_TIMEOUT_MS;
+})();
 const AUTH_TOKEN_KEY = "auth_token";
 const AUTH_USER_KEY = "auth_user";
 
@@ -111,7 +120,7 @@ const request = <T>(options: RequestOptions): Promise<T> => {
       url: `${BASE_URL}${url}`,
       method,
       data,
-      timeout: 15000,
+      timeout: REQUEST_TIMEOUT_MS,
       header: requestHeaders,
       success: (res: any) => {
         if (res.statusCode >= 200 && res.statusCode < 300) {
