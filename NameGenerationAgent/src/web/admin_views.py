@@ -17,6 +17,8 @@ from flask import (
     url_for,
 )
 
+# 绝对导入与项目其他模块（如 src/utils/cache_manager.py）风格一致，
+# 项目以 NameGenerationAgent/ 为 sys.path 根，无需相对导入。
 from config.api_config import API_DISPLAY_NAMES
 
 admin_bp = Blueprint("admin", __name__, url_prefix="/admin")
