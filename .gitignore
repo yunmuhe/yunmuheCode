@@ -132,9 +132,8 @@ temp_*.py
 test_style_fix.py
 cleanup_project.py
 
-# Flask Web模板（已移除，后端仅提供API）
-templates/
-src/web/templates/
+# Flask Web模板（前端独立项目使用，根目录级别忽略）
+# 注意：NameGenerationAgent/src/web/templates/ 中的后端模板需要追踪，不在此忽略
 
 # Node modules (for frontend)
 node_modules/

@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>管理员登录</title>
+  <style>
+    body { font-family: "Microsoft YaHei", sans-serif; background:#f5f7fb; }
+    .card { width: 360px; margin: 90px auto; background:#fff; border-radius:10px; padding:24px; box-shadow:0 10px 30px rgba(0,0,0,.08); }
+    h1 { margin:0 0 16px; font-size:22px; }
+    .field { margin-bottom:12px; }
+    label { display:block; margin-bottom:6px; color:#555; font-size:14px; }
+    input { width:100%; height:38px; border:1px solid #d0d7de; border-radius:6px; padding:0 10px; box-sizing:border-box; }
+    button { width:100%; height:38px; background:#0b57d0; color:#fff; border:0; border-radius:6px; cursor:pointer; }
+    .err { background:#fff2f0; color:#cf1322; border:1px solid #ffccc7; padding:8px; border-radius:6px; margin-bottom:10px; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>后台管理登录</h1>
+    {% if error %}
+    <div class="err">{{ error }}</div>
+    {% endif %}
+    <form method="post">
+      <div class="field">
+        <label>手机号</label>
+        <input name="phone" maxlength="11" required>
+      </div>
+      <div class="field">
+        <label>密码</label>
+        <input type="password" name="password" required>
+      </div>
+      <button type="submit">登录</button>
+    </form>
+  </div>
+</body>
+</html>
