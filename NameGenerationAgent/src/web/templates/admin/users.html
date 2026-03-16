@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>用户管理</title>
+  <style>
+    body { font-family: "Microsoft YaHei", sans-serif; background:#f6f8fa; margin:0; }
+    .wrap { max-width: 1080px; margin: 20px auto; background:#fff; border-radius:10px; padding:16px; box-shadow:0 8px 20px rgba(0,0,0,.06); }
+    h1 { margin: 0 0 12px; font-size:22px; }
+    .topbar { display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; }
+    form.filters { display:grid; grid-template-columns: 1fr 140px 140px 120px; gap:8px; margin-bottom:12px; }
+    input, select, button { height:34px; border:1px solid #d0d7de; border-radius:6px; padding:0 8px; box-sizing:border-box; }
+    button { background:#1677ff; color:#fff; border:none; cursor:pointer; }
+    table { width:100%; border-collapse: collapse; }
+    th, td { border-bottom:1px solid #eee; text-align:left; padding:8px; font-size:14px; }
+    .badge { display:inline-block; padding:2px 8px; border-radius:10px; font-size:12px; }
+    .role-admin { background:#fff7e6; color:#ad6800; }
+    .role-user { background:#f0f5ff; color:#1d39c4; }
+    .state-on { color:#237804; }
+    .state-off { color:#a8071a; }
+    .link { color:#1677ff; text-decoration:none; }
+    .logout { background:#fff; color:#111; border:1px solid #d0d7de; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="topbar">
+      <h1>用户管理</h1>
+      <form action="{{ url_for('admin.logout') }}" method="post">
+        <button class="logout" type="submit">退出</button>
+      </form>
+    </div>
+    <form class="filters" method="get">
+      <input name="phone" placeholder="手机号搜索" value="{{ filters.phone }}">
+      <select name="role">
+        <option value="">全部角色</option>
+        <option value="admin" {% if filters.role=='admin' %}selected{% endif %}>管理员</option>
+        <option value="user" {% if filters.role=='user' %}selected{% endif %}>用户</option>
+      </select>
+      <select name="enabled">
+        <option value="">全部状态</option>
+        <option value="1" {% if filters.enabled=='1' %}selected{% endif %}>启用</option>
+        <option value="0" {% if filters.enabled=='0' %}selected{% endif %}>禁用</option>
+      </select>
+      <button type="submit">查询</button>
+    </form>
+
+    <table>
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>手机号</th>
+          <th>角色</th>
+          <th>状态</th>
+          <th>强制改密</th>
+          <th>最后登录</th>
+          <th>操作</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for item in result['items'] %}
+        <tr>
+          <td>{{ item.id }}</td>
+          <td>{{ item.phone }}</td>
+          <td>
+            <span class="badge {% if item.role == 'admin' %}role-admin{% else %}role-user{% endif %}">
+              {{ item.role }}
+            </span>
+          </td>
+          <td class="{% if item.is_enabled %}state-on{% else %}state-off{% endif %}">
+            {{ '启用' if item.is_enabled else '禁用' }}
+          </td>
+          <td>{{ '是' if item.must_change_password else '否' }}</td>
+          <td>{{ item.last_login_at or '-' }}</td>
+          <td>
+            <a class="link" href="{{ url_for('admin.user_detail', user_id=item.id) }}">详情</a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</body>
+</html>

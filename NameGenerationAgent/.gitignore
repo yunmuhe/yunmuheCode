@@ -13,6 +13,12 @@ env/
 
 # Environment variables
 .env
+.env.backup
+*.backup
+
+# IDE
+.vscode/
+.idea/
 
 # Logs
 logs/
@@ -23,6 +29,14 @@ app.log
 data/cache/
 *.cache
 .pytest_cache/
+
+# Database files (runtime generated, not committed)
+*.db
+*.sqlite
+*.sqlite3
+
+# natapp 内网穿透工具（含可执行文件和 authtoken 配置）
+natapp/
 
 # OS
 .DS_Store
