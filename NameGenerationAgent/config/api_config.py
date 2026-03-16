@@ -65,6 +65,19 @@ def summarize_api_configurations(configs: Dict[str, Any]) -> Dict[str, Dict[str,
     return summary
 
 
+# API 显示名称映射（集中管理，供 admin_views 等模块引用）
+API_DISPLAY_NAMES = {
+    "aliyun": "阿里云",
+    "siliconflow": "SiliconFlow",
+    "baishan": "白山智算",
+    "paiou": "派欧云",
+    "aistudio": "AI Studio",
+    "openai": "OpenAI",
+    "gemini": "Gemini",
+    "mock": "模拟接口",
+}
+
+
 class APIConfig:
     """API平台配置基类"""
 
@@ -127,7 +140,10 @@ class BaishanConfig(APIConfig):
             api_key=os.environ.get("BAISHAN_API_KEY"),
         )
         self.model = os.environ.get("BAISHAN_MODEL", "MiniMax-M2.5")
-        self.max_tokens = int(os.environ.get("BAISHAN_MAX_TOKENS", 2000))
+        try:
+            self.max_tokens = int(os.environ.get("BAISHAN_MAX_TOKENS", 2000))
+        except (ValueError, TypeError):
+            self.max_tokens = 2000
 
 
 class OpenAIConfig(APIConfig):
@@ -202,7 +218,10 @@ class AistudioConfig:
         )
         self.model = os.environ.get("AISTUDIO_MODEL", "Qwen3-30B-A3B-Q4_K_M")
         self.api_key = os.environ.get("AISTUDIO_API_KEY")
-        self.max_tokens = int(os.environ.get("AISTUDIO_MAX_TOKENS", 2000))
+        try:
+            self.max_tokens = int(os.environ.get("AISTUDIO_MAX_TOKENS", 2000))
+        except (ValueError, TypeError):
+            self.max_tokens = 2000
         self.enabled = bool(self.api_key)
         self.stream = True
         self.response_format = None

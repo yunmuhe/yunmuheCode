@@ -17,18 +17,10 @@ from flask import (
     url_for,
 )
 
+from config.api_config import API_DISPLAY_NAMES
+
 admin_bp = Blueprint("admin", __name__, url_prefix="/admin")
 ADMIN_SESSION_KEY = "admin_user_id"
-API_DISPLAY_NAMES = {
-    "aliyun": "阿里云",
-    "siliconflow": "SiliconFlow",
-    "baishan": "白山智算",
-    "paiou": "派欧云",
-    "aistudio": "AI Studio",
-    "openai": "OpenAI",
-    "gemini": "Gemini",
-    "mock": "模拟接口",
-}
 
 
 def _auth_service():

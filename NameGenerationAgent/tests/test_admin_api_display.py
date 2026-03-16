@@ -11,3 +11,15 @@ def test_display_api_name_keeps_unknown_provider_name():
 
 def test_display_api_name_returns_dash_for_empty_value():
     assert _display_api_name("") == "-"
+
+
+def test_display_api_name_handles_none_value():
+    assert _display_api_name(None) == "-"
+
+
+def test_display_api_name_strips_whitespace():
+    assert _display_api_name("  aliyun  ") == "阿里云"
+
+
+def test_display_api_name_handles_whitespace_only():
+    assert _display_api_name("   ") == "-"
