@@ -201,7 +201,7 @@
             {% set cur = records_result['page'] %}
             <div class="pagination">
               {% if cur > 1 %}
-                <a href="?start={{ filters.start }}&end={{ filters.end }}&page={{ cur - 1 }}">上一页</a>
+                <a href="?start={{ filters.start|urlencode }}&end={{ filters.end|urlencode }}&page={{ cur - 1 }}">上一页</a>
               {% else %}
                 <span class="disabled">上一页</span>
               {% endif %}
@@ -210,14 +210,16 @@
                 {% if p == cur %}
                   <span class="current">{{ p }}</span>
                 {% elif p == 1 or p == total_pages or (p >= cur - 2 and p <= cur + 2) %}
-                  <a href="?start={{ filters.start }}&end={{ filters.end }}&page={{ p }}">{{ p }}</a>
-                {% elif p == cur - 3 or p == cur + 3 %}
+                  <a href="?start={{ filters.start|urlencode }}&end={{ filters.end|urlencode }}&page={{ p }}">{{ p }}</a>
+                {% elif p == cur - 3 and p > 1 %}
+                  <span class="disabled">…</span>
+                {% elif p == cur + 3 and p < total_pages %}
                   <span class="disabled">…</span>
                 {% endif %}
               {% endfor %}
 
               {% if cur < total_pages %}
-                <a href="?start={{ filters.start }}&end={{ filters.end }}&page={{ cur + 1 }}">下一页</a>
+                <a href="?start={{ filters.start|urlencode }}&end={{ filters.end|urlencode }}&page={{ cur + 1 }}">下一页</a>
               {% else %}
                 <span class="disabled">下一页</span>
               {% endif %}
