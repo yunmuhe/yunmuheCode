@@ -7,7 +7,7 @@ class DummyAliyunConfig:
         self.base_url = "https://dashscope.aliyuncs.com/api/v1"
         self.api_key = "test-key"
         self.enabled = True
-        self.model = "qwen3-235b-a22b-thinking-2507"
+        self.model = "qwen3-235b-a22b"
         self.max_tokens = 2000
         self.fallback_models = ["qwen-turbo"]
 
@@ -60,10 +60,10 @@ def test_generate_names_uses_dashscope_compatible_chat_completions(monkeypatch):
     result = adapter.generate_names("请生成一个测试姓名")
 
     assert result["success"] is True
-    assert result["model"] == "qwen3-235b-a22b-thinking-2507"
+    assert result["model"] == "qwen3-235b-a22b"
     assert result["names"][0]["name"] == "林子轩"
     assert calls[0]["url"] == "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions"
-    assert calls[0]["json"]["model"] == "qwen3-235b-a22b-thinking-2507"
+    assert calls[0]["json"]["model"] == "qwen3-235b-a22b"
     assert "messages" in calls[0]["json"]
 
 
@@ -101,7 +101,7 @@ def test_generate_names_falls_back_when_free_tier_quota_is_exhausted(monkeypatch
     assert result["success"] is True
     assert result["model"] == "qwen-turbo"
     assert len(calls) == 2
-    assert calls[0]["json"]["model"] == "qwen3-235b-a22b-thinking-2507"
+    assert calls[0]["json"]["model"] == "qwen3-235b-a22b"
     assert calls[1]["json"]["model"] == "qwen-turbo"
 
 

@@ -6,8 +6,6 @@ from .openai_compatible_adapter import OpenAICompatibleAdapter
 
 
 class AistudioAdapter(OpenAICompatibleAdapter):
-    system_prompt = "你是一个专业的姓名生成专家。"
-
     def list_models(self) -> List[Dict[str, Any]]:
         if not self.is_available():
             return []

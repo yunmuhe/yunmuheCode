@@ -87,6 +87,14 @@ class BaseAPIAdapter(ABC):
             if labeled:
                 label, value = labeled
                 if label == "name":
+                    # 处理 "姓名：xxx - 寓意：yyy" 同行格式
+                    dash_match = re.search(r"^(.+?)\s*[-—–]\s*(?:寓意[：:])?(.+)$", value)
+                    if dash_match:
+                        name = self._clean_name_prefix(dash_match.group(1).strip())
+                        meaning = self._clean_text(dash_match.group(2).strip())
+                        if name and meaning and 2 <= len(name) <= 10:
+                            names.append({"name": name, "meaning": meaning, "source": self.name})
+                            continue
                     pending_name = value
                     continue
                 if label == "meaning" and pending_name:
