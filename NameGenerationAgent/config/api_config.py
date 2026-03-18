@@ -68,7 +68,7 @@ def summarize_api_configurations(configs: Dict[str, Any]) -> Dict[str, Dict[str,
 # API 显示名称映射（集中管理，供 admin_views 等模块引用）
 API_DISPLAY_NAMES = {
     "aliyun": "阿里云",
-    "siliconflow": "SiliconFlow",
+    "siliconflow": "硅基流动",
     "baishan": "白山智算",
     "paiou": "派欧云",
     "aistudio": "AI Studio",
@@ -105,7 +105,7 @@ class AliyunConfig(APIConfig):
             api_key=os.environ.get("ALIYUN_API_KEY"),
         )
         # 支持通过环境变量覆盖模型
-        self.model = os.environ.get("ALIYUN_MODEL", "qwen3-235b-a22b-thinking-2507")
+        self.model = os.environ.get("ALIYUN_MODEL", "qwen3-max")
         self.max_tokens = 2000
         # 降级候选模型列表
         self.fallback_models = [os.environ.get("ALIYUN_FALLBACK_MODEL", "qwen-turbo")]
