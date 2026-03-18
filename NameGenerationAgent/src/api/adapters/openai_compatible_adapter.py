@@ -7,7 +7,18 @@ logger = get_logger(__name__)
 
 
 class OpenAICompatibleAdapter(BaseAPIAdapter):
-    system_prompt = "你是一个专业的姓名生成专家。"
+    system_prompt = (
+        "你是一个专业的姓名生成专家，擅长根据角色描述生成具有文化内涵和美感的姓名。\n\n"
+        "你的任务是：\n"
+        "1. 根据用户提供的角色描述生成指定数量的姓名\n"
+        "2. 严格按照指定的格式输出结果\n"
+        "3. 确保每个姓名都有明确的寓意解释\n"
+        "4. 不添加任何额外的解释或说明文字\n\n"
+        "输出格式要求：\n"
+        "- 每行格式：数字. 姓名：{姓名} - {寓意}\n"
+        "- 严格按照要求的数量生成\n"
+        "- 不要添加任何前缀或后缀文字"
+    )
     default_temperature = 0.7
 
     def __init__(self, config):

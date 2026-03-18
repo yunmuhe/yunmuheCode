@@ -8,8 +8,6 @@ logger = get_logger(__name__)
 
 
 class SiliconFlowAdapter(OpenAICompatibleAdapter):
-    system_prompt = "你是一个有用的助手"
-
     def list_models(self) -> List[Dict[str, Any]]:
         if not self.is_available():
             return []
