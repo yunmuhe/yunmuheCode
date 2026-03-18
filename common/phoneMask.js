@@ -5,6 +5,4 @@ function maskPhoneNumber(phone) {
     return `${"*".repeat(7)}${raw.slice(7)}`;
 }
 
-module.exports = {
-    maskPhoneNumber,
-};
+export { maskPhoneNumber };
