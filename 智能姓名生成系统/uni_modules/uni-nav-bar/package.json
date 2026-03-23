@@ -1,0 +1,17 @@
+{
+	"id": "uni-nav-bar",
+	"displayName": "uni-nav-bar 导航栏",
+	"version": "1.0.0",
+	"description": "导航栏组件",
+	"keywords": ["uni-ui", "导航栏"],
+	"uni_modules": {
+		"platforms": {
+			"client": {
+				"App": { "app-vue": "y" },
+				"H5-mobile": { "Safari": "y" },
+				"H5-pc": { "Chrome": "y" },
+				"小程序": { "微信": "y" }
+			}
+		}
+	}
+}
