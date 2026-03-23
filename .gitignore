@@ -166,8 +166,8 @@ Chinese-Names-Corpus-master/
 # 演示和测试HTML文件
 theme-demo.html
 
-# Frontend project (has its own git repo)
-智能姓名生成系统/
+# Worktree directories
+.worktrees/
 
 # KEYHUB（本仓库不跟踪）
 KEYHUB/
