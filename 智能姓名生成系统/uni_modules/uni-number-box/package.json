@@ -1,0 +1,17 @@
+{
+	"id": "uni-number-box",
+	"displayName": "uni-number-box 数字输入框",
+	"version": "1.0.0",
+	"description": "数字输入框组件",
+	"keywords": ["uni-ui", "数字输入框"],
+	"uni_modules": {
+		"platforms": {
+			"client": {
+				"App": { "app-vue": "y" },
+				"H5-mobile": { "Safari": "y" },
+				"H5-pc": { "Chrome": "y" },
+				"小程序": { "微信": "y" }
+			}
+		}
+	}
+}
