@@ -1,0 +1,1110 @@
+﻿<template>
+	<view class="generate-page" :style="themeVars">
+		<!-- 顶部导航栏 -->
+		<CustomNavBar
+			title="姓名生成助手"
+			fallback-url="/pages/Index/Index"
+			fallback-mode="reLaunch"
+		>
+			<template #right>
+				<button class="batch-btn" @click="handleBatchGenerate">
+					<uni-icons type="list" size="24" :color="themePalette.textPrimary"></uni-icons>
+				</button>
+			</template>
+		</CustomNavBar>
+		<!-- 后端连接状态 -->
+		<view class="health-bar">
+			<view class="health-info">
+				<view :class="['dot', health.ok ? 'ok' : 'bad']"></view>
+				<text class="health-text">{{ health.ok ? '已连接' : '未连接' }}</text>
+				<text class="health-sub" v-if="health.version">v{{ health.version }}</text>
+			</view>
+			<button class="refresh-btn" @click="refreshHealth" :disabled="health.loading">
+				<uni-icons v-if="!health.loading" type="refresh" size="20" :color="themePalette.textPrimary"></uni-icons>
+				<uni-load-more v-else status="loading" iconType="circle" :showText="false" />
+			</button>
+		</view>
+		<!-- 生成参数设置 -->
+		<view class="options-panel">
+			<view class="option-row">
+				<picker mode="selector" :range="styleLabels" :value="styleIndex" @change="handleStyleChange">
+					<view class="option-item">
+						<text class="option-label">风格</text>
+						<text class="option-value">{{ currentStyleLabel }}</text>
+					</view>
+				</picker>
+				<picker mode="selector" :range="genderLabels" :value="genderIndex" @change="handleGenderChange">
+					<view class="option-item">
+						<text class="option-label">性别</text>
+						<text class="option-value">{{ currentGenderLabel }}</text>
+					</view>
+				</picker>
+			</view>
+			<view class="option-row">
+				<picker mode="selector" :range="ageLabels" :value="ageIndex" @change="handleAgeChange">
+					<view class="option-item">
+						<text class="option-label">年龄</text>
+						<text class="option-value">{{ currentAgeLabel }}</text>
+					</view>
+				</picker>
+				<picker mode="selector" :range="countLabels" :value="countIndex" @change="handleCountChange">
+					<view class="option-item">
+						<text class="option-label">数量</text>
+						<text class="option-value">{{ currentCountLabel }}</text>
+					</view>
+				</picker>
+			</view>
+			<view class="option-row">
+				<picker mode="selector" :range="apiLabels" :value="apiIndex" @change="handleApiChange">
+					<view class="option-item">
+						<text class="option-label">API</text>
+						<text class="option-value">{{ currentApiLabel }}</text>
+					</view>
+				</picker>
+				<picker
+					mode="selector"
+					:range="modelLabels"
+					:value="modelIndex"
+					@change="handleModelChange"
+					:disabled="loadingModels || !availableModels.length"
+				>
+					<view class="option-item" :class="{ disabled: loadingModels || !availableModels.length }">
+						<text class="option-label">模型</text>
+						<text class="option-value">{{ currentModelLabel }}</text>
+					</view>
+				</picker>
+			</view>
+			<view class="option-row" v-if="false">
+				<view class="option-item readonly">
+					<text class="option-label">接口地址</text>
+					<text class="option-value base-url">{{ apiBaseUrl }}</text>
+				</view>
+			</view>
+		</view>
+		<!-- 聊天区域 -->
+		<view class="chat-container">
+			<scroll-view scroll-y class="messages-container" id="messagesContainer" :scroll-into-view="scrollIntoViewId">
+				<!-- 系统欢迎消息 -->
+				<view class="message system-message">
+					<view class="message-bubble">
+						<text class="message-text">您好！我是您的姓名生成助手，请告诉我您想要什么样的名字？</text>
+					</view>
+				</view>
+				<!-- 用户最新请求 -->
+				<view class="message user-message" v-if="lastQuery">
+				<view class="message-bubble">
+					<text class="message-text">{{ lastQuery }}</text>
+				</view>
+			</view>
+			<view class="message ai-message" v-if="generationError && !isGenerating">
+				<view class="avatar error-avatar">
+					<uni-icons type="info" size="20" :color="themePalette.accentContrast"></uni-icons>
+				</view>
+				<view class="message-content">
+					<view class="message-bubble error-bubble">
+						<text class="message-text">{{ generationError }}</text>
+					</view>
+				</view>
+			</view>
+				<!-- AI回复 -->
+				<view class="message ai-message" v-if="generatedNames.length">
+					<view class="avatar">
+						<uni-icons type="person" size="24" :color="themePalette.accentContrast"></uni-icons>
+					</view>
+					<view class="message-content">
+						<view class="message-bubble">
+							<text class="message-text">为您推荐以下{{ generatedNames.length }}个姓名：</text>
+							<view class="meta-info" v-if="apiMeta.apiName || apiMeta.model">
+								<text v-if="apiMeta.apiName">API：{{ formatApiLabel(apiMeta.apiName) }}</text>
+								<text v-if="apiMeta.model">模型：{{ apiMeta.model }}</text>
+							</view>
+						</view>
+						<view class="name-suggestions">
+							<view class="suggestion-card" v-for="(name, index) in generatedNames" :key="name.id || index" :id="name.domId">
+								<view class="card-header">
+									<text class="name-text">{{ name.name }}</text>
+									<view class="actions">
+										<button
+											class="action-btn"
+											:class="{ pending: isFavoritePending(name.id) }"
+											:disabled="isFavoritePending(name.id)"
+											@click="toggleFavorite(index)"
+										>
+											<uni-icons
+												:type="name.isFavorite ? 'heart-filled' : 'heart'"
+												size="20"
+												:color="isFavoritePending(name.id) ? themePalette.disabledIcon : name.isFavorite ? themePalette.danger : themePalette.textSecondary"
+											></uni-icons>
+										</button>
+									</view>
+								</view>
+								<text class="meaning-text">{{ name.meaning }}</text>
+								<view class="tags">
+									<view class="tag">{{ name.style }}</view>
+									<view class="tag" v-if="name.source">来源：{{ formatApiLabel(name.source) }}</view>
+								</view>
+								<view class="features" v-if="name.features && Object.keys(name.features).length">
+									<text class="feature-pill" v-for="(value, key) in name.features" :key="key">
+										{{ formatFeatureLabel(key, value) }}
+									</text>
+								</view>
+							</view>
+						</view>
+					</view>
+				</view>
+				<view class="empty-state" v-else-if="!isGenerating && !generationError">
+					<uni-icons type="light" size="24" :color="themePalette.textSecondary"></uni-icons>
+					<text class="empty-text">输入描述并点击发送即可生成姓名</text>
+				</view>
+			</scroll-view>
+		</view>
+		<!-- 底部输入区域 -->
+		<view class="input-area">
+			<view class="input-container">
+				<textarea
+					v-model="description"
+					placeholder="请输入您希望生成姓名的相关描述..."
+					:placeholder-style="placeholderStyle"
+					class="description-input"
+					:auto-height="true"
+					maxlength="500"
+				/>
+				<view class="char-count">{{ description.length }}/500</view>
+			</view>
+			<button class="send-btn" @click="handleGenerate" :disabled="!description.trim() || isGenerating">
+				<uni-icons v-if="!isGenerating" type="paperplane" size="24" :color="themePalette.accentContrast"></uni-icons>
+				<uni-load-more v-else status="loading" iconType="circle" :showText="false" />
+			</button>
+		</view>
+	</view>
+</template>
+<script lang="ts" setup>
+	import { ref, computed, nextTick, watch, onMounted, onUnmounted } from 'vue';
+	import { onLoad, onShow } from '@dcloudio/uni-app';
+	import {
+		fetchBackendOptions,
+		generateNames as generateNamesApi,
+		getApiBaseUrl,
+		fetchHealth,
+		addFavorite,
+		deleteFavorites,
+		getModels,
+		getAuthUser,
+		type GeneratedName,
+		type ModelInfo,
+	} from '../../common/api';
+	import { createThemeCssVars, getRuntimeThemePalette, type ThemePalette } from '../../common/theme';
+	import CustomNavBar from '../../components/CustomNavBar.vue';
+	import uniIcons from '@/uni_modules/uni-icons/components/uni-icons/uni-icons.vue';
+	import uniLoadMore from '@/uni_modules/uni-load-more/components/uni-load-more/uni-load-more.vue';
+
+	interface NameCard extends GeneratedName {
+		isFavorite: boolean;
+		style: string;
+		domId: string;
+	}
+
+	interface StoredAppSettings {
+		generateCount?: number;
+		stylePreference?: string;
+		autoCopy?: boolean;
+	}
+
+	const description = ref('');
+	const isGenerating = ref(false);
+	const lastQuery = ref('');
+	const generationError = ref('');
+	const generatedNames = ref<NameCard[]>([]);
+	const scrollIntoViewId = ref('');
+	const favoritePendingIds = ref<string[]>([]);
+	const themePalette = ref<ThemePalette>(getRuntimeThemePalette());
+	const themeVars = computed(() => createThemeCssVars(themePalette.value));
+	const placeholderStyle = computed(() => `color:${themePalette.value.textSecondary};`);
+
+	const availableStyles = ref<string[]>([]);
+	const availableGenders = ref<string[]>([]);
+	const availableAges = ref<string[]>([]);
+	const availableApis = ref<string[]>([]);
+
+	const styleIndex = ref(0);
+	const genderIndex = ref(0);
+	const ageIndex = ref(0);
+	const apiIndex = ref(0);
+	const countIndex = ref(4); // 默认5个
+	const modelIndex = ref(0); // 模型索引
+
+	const countValues = ref<number[]>([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
+
+	// 模型相关
+	const availableModels = ref<ModelInfo[]>([]); // 当前API平台的可用模型
+	const allModels = ref<Record<string, ModelInfo[]>>({}); // 所有平台的模型
+	const loadingModels = ref(false); // 加载模型中
+
+	const apiMeta = ref({
+		apiName: '',
+		model: '',
+	});
+
+	const apiBaseUrl = getApiBaseUrl();
+
+	const health = ref({
+		ok: false,
+		version: '',
+		loading: false,
+	});
+
+	const syncTheme = () => {
+		themePalette.value = getRuntimeThemePalette();
+	};
+
+	const styleLabelMap: Record<string, string> = {
+		chinese_modern: '现代中文',
+		chinese_traditional: '传统中文',
+		chinese_classic: '古典中文',
+		fantasy: '奇幻风格',
+		western: '西方风格',
+		japanese: '日式风格',
+	};
+
+	const genderLabelMap: Record<string, string> = {
+		male: '男性',
+		female: '女性',
+		neutral: '中性',
+	};
+
+	const ageLabelMap: Record<string, string> = {
+		child: '儿童',
+		teen: '青少年',
+		adult: '成年人',
+		elder: '长者',
+	};
+
+	const apiLabelMap: Record<string, string> = {
+		paiou: '派欧云',
+		aistudio: 'Aistudio',
+		baidu: '百度千帆',
+		baishan: '白山智算',
+		siliconflow: 'SiliconFlow',
+		aliyun: '阿里云',
+		mock: '模拟接口',
+	};
+
+	const formatApiLabel = (apiName?: string) => {
+		if (!apiName) return '';
+		return apiLabelMap[apiName] || apiName;
+	};
+
+	const styleLabels = computed(() => availableStyles.value.map((style) => styleLabelMap[style] || style));
+	const genderLabels = computed(() => availableGenders.value.map((gender) => genderLabelMap[gender] || gender));
+	const ageLabels = computed(() => availableAges.value.map((age) => ageLabelMap[age] || age));
+	const apiLabels = computed(() =>
+		availableApis.value.length
+			? availableApis.value.map((api) => apiLabelMap[api] || api)
+			: ['自动选择'],
+	);
+	const countLabels = computed(() => countValues.value.map((value) => `${value}个`));
+
+	const currentStyle = computed(
+		() => availableStyles.value[styleIndex.value] || availableStyles.value[0] || 'chinese_modern',
+	);
+	const currentGender = computed(
+		() => availableGenders.value[genderIndex.value] || availableGenders.value[0] || 'neutral',
+	);
+	const currentAge = computed(() => availableAges.value[ageIndex.value] || availableAges.value[0] || 'adult');
+	const currentApi = computed(() => availableApis.value[apiIndex.value]);
+	const currentCount = computed(() => countValues.value[countIndex.value] || 5);
+
+	const currentStyleLabel = computed(() => styleLabelMap[currentStyle.value] || currentStyle.value);
+	const currentGenderLabel = computed(() => genderLabelMap[currentGender.value] || currentGender.value);
+	const currentAgeLabel = computed(() => ageLabelMap[currentAge.value] || currentAge.value);
+	const currentApiLabel = computed(() => {
+		if (!availableApis.value.length) return '自动选择';
+		const api = currentApi.value;
+		return api ? apiLabelMap[api] || api : '自动选择';
+	});
+	const currentCountLabel = computed(() => `${currentCount.value}个`);
+
+	// 模型相关computed
+	const modelLabels = computed(() => {
+		if (loadingModels.value) return ['加载中...'];
+		if (!availableModels.value.length) return ['自动选择'];
+		return availableModels.value.map((model) => model.name || model.id);
+	});
+
+	const currentModel = computed(() => {
+		if (!availableModels.value.length) return null;
+		return availableModels.value[modelIndex.value] || null;
+	});
+
+	const currentModelLabel = computed(() => {
+		if (loadingModels.value) return '加载中...';
+		if (!availableModels.value.length) return '自动选择';
+		return currentModel.value?.name || currentModel.value?.id || '自动选择';
+	});
+
+	const ensureDefaultOptions = () => {
+		if (!availableStyles.value.length) {
+			availableStyles.value = ['chinese_modern', 'chinese_traditional', 'fantasy'];
+		}
+		if (!availableGenders.value.length) {
+			availableGenders.value = ['male', 'female', 'neutral'];
+		}
+		if (!availableAges.value.length) {
+			availableAges.value = ['child', 'adult', 'elder'];
+		}
+	};
+
+	const buildDomId = (value: string | undefined, index: number) => {
+		const base = value && value.trim().length ? value : `name_${Date.now()}_${index}`;
+		return `generated-${base.replace(/[^a-zA-Z0-9_-]/g, '')}`;
+	};
+
+	const getStoredAppSettings = (): StoredAppSettings => {
+		try {
+			const stored = uni.getStorageSync('app_settings');
+			return stored && typeof stored === 'object' ? stored : {};
+		} catch (error) {
+			return {};
+		}
+	};
+
+	const applyStoredPreferences = () => {
+		const storedSettings = getStoredAppSettings();
+		if (typeof storedSettings.generateCount === 'number') {
+			const matchedCountIndex = countValues.value.findIndex((value) => value === storedSettings.generateCount);
+			if (matchedCountIndex >= 0) {
+				countIndex.value = matchedCountIndex;
+			}
+		}
+
+		if (typeof storedSettings.stylePreference === 'string' && availableStyles.value.length) {
+			const matchedStyleIndex = availableStyles.value.indexOf(storedSettings.stylePreference);
+			if (matchedStyleIndex >= 0) {
+				styleIndex.value = matchedStyleIndex;
+			}
+		}
+	};
+
+	const copyResultsIfNeeded = (names: NameCard[]) => {
+		const storedSettings = getStoredAppSettings();
+		if (!storedSettings.autoCopy || !names.length || typeof uni.setClipboardData !== 'function') {
+			return;
+		}
+
+		const content = names.map((item) => item.name).join('\n');
+		uni.setClipboardData({
+			data: content,
+			showToast: false,
+			success: () => {
+				uni.showToast({
+					title: '结果已自动复制',
+					icon: 'none',
+				});
+			},
+		});
+	};
+
+	const loadOptions = async () => {
+		try {
+			const res = await fetchBackendOptions();
+			if (res.success && res.options) {
+				availableStyles.value = res.options.cultural_styles || [];
+				availableGenders.value = res.options.genders || [];
+				availableAges.value = res.options.ages || [];
+				availableApis.value = res.options.apis || [];
+
+				ensureDefaultOptions();
+
+				// 读取设置页保存的默认 API（preferred_api），如果可用则默认选中
+				try {
+					const saved = uni.getStorageSync('preferred_api');
+					if (saved && availableApis.value.length) {
+						const idx = availableApis.value.indexOf(saved);
+						if (idx >= 0) {
+							apiIndex.value = idx;
+						}
+					}
+				} catch (e) {}
+
+				if (styleIndex.value >= availableStyles.value.length) {
+					styleIndex.value = 0;
+				}
+				if (genderIndex.value >= availableGenders.value.length) {
+					genderIndex.value = 0;
+				}
+				if (ageIndex.value >= availableAges.value.length) {
+					ageIndex.value = 0;
+				}
+				if (availableApis.value.length === 0) {
+					apiIndex.value = 0;
+				} else if (apiIndex.value >= availableApis.value.length) {
+					apiIndex.value = 0;
+				}
+
+				applyStoredPreferences();
+			} else {
+				throw new Error(res.error || '未能获取可用选项');
+			}
+		} catch (error) {
+			console.warn('加载可用选项失败:', error);
+			ensureDefaultOptions();
+			uni.showToast({
+				title: '选项加载失败，已使用默认配置',
+				icon: 'none',
+				duration: 2000,
+			});
+		}
+	};
+
+	// 加载模型列表
+	const loadModels = async (retryCount = 0): Promise<void> => {
+		try {
+			loadingModels.value = true;
+			const res = await getModels();
+			if (res.success && res.models) {
+				allModels.value = res.models;
+				// 如果当前选中了API，更新该API的模型列表
+				if (currentApi.value && allModels.value[currentApi.value]) {
+					availableModels.value = allModels.value[currentApi.value];
+					modelIndex.value = 0; // 重置为第一个模型
+				}
+			}
+		} catch (error) {
+			console.warn('加载模型列表失败:', error);
+			if (retryCount < 1) {
+				await new Promise((resolve) => setTimeout(resolve, 2000));
+				await loadModels(retryCount + 1);
+				return;
+			}
+		} finally {
+			loadingModels.value = false;
+		}
+	};
+
+	// 当API变化时，更新可用模型列表
+	watch(currentApi, async (newApi) => {
+		if (newApi && allModels.value[newApi]) {
+			availableModels.value = allModels.value[newApi];
+			modelIndex.value = 0; // 重置为第一个模型
+		} else if (newApi && !Object.keys(allModels.value).length) {
+			// allModels 为空说明 loadModels 还没成功，触发重新加载
+			availableModels.value = [];
+			modelIndex.value = 0;
+			await loadModels();
+		} else {
+			availableModels.value = [];
+			modelIndex.value = 0;
+		}
+	});
+
+	onLoad(async (options) => {
+		syncTheme();
+		const preset = typeof options?.preset === 'string' ? options.preset.trim() : '';
+		if (preset) {
+			description.value = preset;
+		}
+
+		// 先加载可用选项（确保 currentApi 有值）
+		await loadOptions();
+
+		// 再加载模型列表（依赖 currentApi）
+		loadModels();
+
+		// 刷新健康状态
+		refreshHealth();
+	});
+
+	onShow(() => {
+		syncTheme();
+	});
+
+	onMounted(() => {
+		if (typeof uni.$on === 'function') {
+			uni.$on('theme-changed', syncTheme);
+		}
+	});
+
+	onUnmounted(() => {
+		if (typeof uni.$off === 'function') {
+			uni.$off('theme-changed', syncTheme);
+		}
+	});
+
+	const handleBatchGenerate = () => {
+		uni.showToast({
+			title: '批量生成暂未开放',
+			icon: 'none',
+		});
+	};
+	const handleGenerate = async () => {
+		if (!description.value.trim()) {
+			uni.showToast({
+				title: '请输入描述内容',
+				icon: 'none',
+			});
+			return;
+		}
+		const promptText = description.value.trim();
+		lastQuery.value = promptText;
+		generationError.value = '';
+		generatedNames.value = [];
+		apiMeta.value = {
+			apiName: '',
+			model: '',
+		};
+		scrollIntoViewId.value = '';
+		isGenerating.value = true;
+		uni.showLoading({
+			title: '生成中...',
+			mask: true,
+		});
+
+		try {
+			const payload = {
+				description: promptText,
+				count: currentCount.value,
+				cultural_style: currentStyle.value,
+				gender: currentGender.value,
+				age: currentAge.value,
+				preferred_api: currentApi.value,
+				use_cache: true,
+				model: currentModel.value?.id || undefined, // 添加模型参数
+			};
+
+			const res = await generateNamesApi(payload);
+
+			if (!res.success) {
+				throw new Error(res.error || '生成姓名失败');
+			}
+
+			const styleLabel = currentStyleLabel.value;
+
+			generatedNames.value = (res.names || []).map((item, index) => ({
+				id: item.id,
+				name: item.name || '未命名',
+				meaning: item.meaning || '暂无释义',
+				source: item.source || res.api_name || '未知来源',
+				features: item.features,
+				isFavorite: false,
+				style: styleLabel,
+				domId: buildDomId(item.id, index),
+			}));
+			copyResultsIfNeeded(generatedNames.value);
+
+			apiMeta.value = {
+				apiName: res.api_name || '',
+				model: res.model || '',
+			};
+
+			description.value = '';
+
+			nextTick(() => {
+				const lastCard = generatedNames.value[generatedNames.value.length - 1];
+				scrollIntoViewId.value = lastCard ? lastCard.domId : '';
+			});
+
+			if (!generatedNames.value.length) {
+				uni.showToast({
+					title: '未获取到姓名结果',
+					icon: 'none',
+				});
+			}
+		} catch (error : any) {
+			generationError.value = error?.message || '生成失败，请稍后再试';
+			uni.showToast({
+				title: generationError.value,
+				icon: 'none',
+				duration: 2000,
+			});
+		} finally {
+			isGenerating.value = false;
+			uni.hideLoading();
+		}
+	};
+	const isFavoritePending = (id?: string) => {
+		if (!id) return false;
+		return favoritePendingIds.value.includes(id);
+	};
+
+	const toggleFavorite = async (index : number) => {
+		if (!generatedNames.value[index]) return;
+		const authUser = getAuthUser();
+		if (!authUser?.phone) {
+			uni.showToast({ title: '请先登录后再收藏', icon: 'none' });
+			uni.navigateTo({
+				url: '/pages/Auth/Auth',
+			});
+			return;
+		}
+		const item = generatedNames.value[index];
+		if (!item.id || isFavoritePending(item.id)) return;
+
+		favoritePendingIds.value = [...favoritePendingIds.value, item.id];
+		item.isFavorite = !item.isFavorite;
+		try {
+			if (item.isFavorite) {
+				await addFavorite({
+					id: item.id,
+					name: item.name,
+					meaning: item.meaning,
+					style: item.style,
+					gender: currentGenderLabel.value,
+					source: item.source || apiMeta.value.apiName,
+				});
+			} else {
+				await deleteFavorites(item.id);
+			}
+		} catch (error: any) {
+			const message =
+				typeof error?.message === 'string' && error.message.includes('401')
+					? '登录状态已失效，请重新登录'
+					: item.isFavorite
+						? '收藏失败'
+						: '取消失败';
+			uni.showToast({ title: message, icon: 'none' });
+			if (message.includes('重新登录')) {
+				uni.navigateTo({
+					url: '/pages/Auth/Auth',
+				});
+			}
+			item.isFavorite = !item.isFavorite;
+		} finally {
+			favoritePendingIds.value = favoritePendingIds.value.filter((pendingId) => pendingId !== item.id);
+		}
+	};
+
+	const handleStyleChange = (e : any) => {
+		styleIndex.value = Number(e.detail.value) || 0;
+	};
+	const handleGenderChange = (e : any) => {
+		genderIndex.value = Number(e.detail.value) || 0;
+	};
+	const handleAgeChange = (e : any) => {
+		ageIndex.value = Number(e.detail.value) || 0;
+	};
+	const handleApiChange = (e : any) => {
+		if (!availableApis.value.length) {
+			apiIndex.value = 0;
+			return;
+		}
+		apiIndex.value = Number(e.detail.value) || 0;
+	};
+	const handleCountChange = (e : any) => {
+		countIndex.value = Number(e.detail.value) || 0;
+	};
+	const handleModelChange = (e : any) => {
+		if (!availableModels.value.length) {
+			modelIndex.value = 0;
+			return;
+		}
+		modelIndex.value = Number(e.detail.value) || 0;
+	};
+
+	const formatFeatureLabel = (key : string, value : any) => {
+		const labelMap: Record<string, string> = {
+			length: '长度',
+			character_count: '字符数',
+			word_count: '单词数',
+			has_space: '含空格',
+			is_chinese: '中文名',
+			is_english: '英文名',
+			tone_pattern: '音韵',
+			stroke_count: '笔画',
+		};
+
+		const label = labelMap[key] || key;
+		if (typeof value === 'boolean') {
+			return `${label}:${value ? '是' : '否'}`;
+		}
+
+		return `${label}:${value}`;
+	};
+
+	const refreshHealth = async () => {
+		try {
+			health.value.loading = true;
+			const res = await fetchHealth();
+			health.value.ok = res?.status === 'healthy';
+			health.value.version = res?.version || '';
+		} catch (e) {
+			health.value.ok = false;
+		} finally {
+			health.value.loading = false;
+		}
+	};
+</script>
+<style>
+	page {
+		height: 100%;
+	}
+
+	.generate-page {
+		display: flex;
+		flex-direction: column;
+		height: 100%;
+		width: 100%;
+		background-color: var(--page-bg);
+	}
+
+	.health-bar {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		padding: 5px 10px;
+		background-color: var(--surface);
+		border-bottom: 1px solid var(--border-color);
+	}
+
+	.health-info {
+		display: flex;
+		align-items: center;
+	}
+
+	.dot {
+		width: 8px;
+		height: 8px;
+		border-radius: 50%;
+		margin-right: 6px;
+		background-color: var(--disabled-bg);
+	}
+	.dot.ok {
+		background-color: var(--success);
+	}
+	.dot.bad {
+		background-color: var(--danger);
+	}
+
+	.health-text {
+		font-size: 13px;
+		color: var(--text-primary);
+		margin-right: 5px;
+	}
+	.health-sub {
+		font-size: 11px;
+		color: var(--text-secondary);
+	}
+
+	.refresh-btn {
+		width: 30px;
+		height: 30px;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		background: none;
+		border: none;
+	}
+
+	.options-panel {
+		padding: 10px;
+		background-color: var(--surface);
+		border-bottom: 1px solid var(--border-color);
+		display: flex;
+		flex-direction: column;
+		gap: 8px;
+	}
+
+	.option-row {
+		display: grid;
+		grid-template-columns: repeat(2, 1fr);
+		gap: 8px;
+	}
+
+	.option-row:last-child {
+		margin-bottom: 0;
+	}
+
+	.option-item {
+		background-color: var(--surface-muted);
+		border-radius: 6px;
+		padding: 10px 12px;
+		display: flex;
+		flex-direction: column;
+		min-width: 0;
+	}
+
+	.option-item:last-child {
+		margin-right: 0;
+	}
+
+	.option-label {
+		font-size: 12px;
+		color: var(--text-secondary);
+		margin-bottom: 4px;
+	}
+
+	.option-value {
+		font-size: 14px;
+		color: var(--text-primary);
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+
+	.option-item.readonly {
+		background-color: var(--warning-soft);
+		border: 1px solid var(--warning-border);
+	}
+
+	.option-item.disabled {
+		opacity: 0.5;
+		background-color: var(--disabled-bg);
+	}
+
+	.option-value.base-url {
+		font-size: 11px;
+		color: var(--warning);
+		word-break: break-all;
+		white-space: normal;
+	}
+
+	.batch-btn {
+		width: 30px;
+		height: 30px;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		border: none;
+		background: none;
+		padding: 0;
+		margin: 0;
+	}
+
+	.chat-container {
+		flex: 1;
+		overflow: hidden;
+		padding: 10px;
+	}
+
+	.messages-container {
+		height: 100%;
+	}
+
+	.message {
+		display: flex;
+		margin-bottom: 15px;
+	}
+
+	.system-message {
+		justify-content: center;
+	}
+
+	.user-message {
+		justify-content: flex-end;
+	}
+
+	.ai-message {
+		justify-content: flex-start;
+	}
+
+	.avatar {
+		width: 30px;
+		height: 30px;
+		border-radius: 50%;
+		background-color: var(--accent);
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		margin-right: 10px;
+		flex-shrink: 0;
+	}
+
+	.error-avatar {
+		background-color: var(--warning);
+	}
+
+	.message-content {
+		max-width: 85%;
+		width: 100%;
+	}
+
+	.message-bubble {
+		background-color: var(--surface);
+		border-radius: 8px;
+		padding: 12px;
+		margin-bottom: 10px;
+		box-shadow: var(--shadow-soft);
+		word-wrap: break-word;
+	}
+
+	.system-message .message-bubble {
+		background-color: var(--surface-muted);
+	}
+
+	.user-message .message-bubble {
+		background-color: var(--accent);
+		color: var(--accent-contrast);
+	}
+
+	.ai-message .message-bubble {
+		background-color: var(--surface);
+	}
+
+	.error-bubble {
+		background-color: var(--warning-soft);
+		border: 1px solid var(--warning-border);
+	}
+
+	.message-text {
+		font-size: 14px;
+		line-height: 20px;
+		color: inherit;
+	}
+
+	.name-suggestions {
+		margin-top: 10px;
+	}
+
+	.suggestion-card {
+		background-color: var(--surface-soft);
+		border-radius: 8px;
+		padding: 12px;
+		margin-bottom: 10px;
+		width: 100%;
+		box-sizing: border-box;
+	}
+
+	.card-header {
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+		margin-bottom: 8px;
+	}
+
+	.name-text {
+		font-size: 16px;
+		font-weight: bold;
+		color: var(--text-primary);
+	}
+
+	.actions {
+		display: flex;
+	}
+
+	.action-btn {
+		width: 25px;
+		height: 25px;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		border: none;
+		background: none;
+		padding: 0;
+	}
+
+	.action-btn.pending {
+		opacity: 0.6;
+	}
+
+	.meaning-text {
+		font-size: 13px;
+		color: var(--text-secondary);
+		line-height: 20px;
+		margin-bottom: 8px;
+	}
+
+	.tags {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 6px;
+	}
+
+	.tag {
+		font-size: 11px;
+		color: var(--accent);
+		background-color: var(--accent-soft);
+		padding: 3px 8px;
+		border-radius: 4px;
+	}
+
+	.features {
+		margin-top: 6px;
+		display: flex;
+		flex-wrap: wrap;
+		gap: 4px;
+	}
+
+	.feature-pill {
+		font-size: 11px;
+		color: var(--text-secondary);
+		background-color: var(--surface-muted);
+		padding: 3px 7px;
+		border-radius: 8px;
+	}
+
+	.meta-info {
+		margin-top: 6px;
+		display: flex;
+		flex-direction: column;
+		font-size: 12px;
+		color: var(--text-secondary);
+	}
+
+	.empty-state {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
+		padding: 40px 10px;
+		color: var(--text-secondary);
+	}
+
+	.empty-text {
+		margin-top: 10px;
+		font-size: 13px;
+	}
+
+	/* 底部输入区域 */
+	.input-area {
+		display: flex;
+		align-items: flex-end;
+		padding: 12px;
+		padding-bottom: calc(12px + env(safe-area-inset-bottom));
+		background-color: var(--surface);
+		border-top: 1px solid var(--border-color);
+		box-sizing: border-box;
+	}
+
+	.input-container {
+		flex: 1;
+		background-color: var(--surface-muted);
+		border-radius: 8px;
+		padding: 10px;
+		margin-right: 10px;
+		min-width: 0;
+	}
+
+	.description-input {
+		width: 100%;
+		min-height: 20px;
+		max-height: 100px;
+		font-size: 14px;
+		line-height: 20px;
+		color: var(--text-primary);
+		padding: 5px 0;
+		box-sizing: border-box;
+	}
+
+	.char-count {
+		text-align: right;
+		font-size: 10px;
+		color: var(--text-secondary);
+		margin-top: 5px;
+	}
+
+	.send-btn {
+		width: 40px;
+		height: 40px;
+		background-color: var(--accent);
+		color: var(--accent-contrast);
+		border-radius: 50%;
+		border: none;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+	}
+
+	.send-btn[disabled] {
+		background-color: var(--disabled-bg);
+		color: var(--disabled-text);
+	}
+</style>
