@@ -169,5 +169,8 @@ theme-demo.html
 # Worktree directories
 .worktrees/
 
+# Temporary backup of old nested frontend repo during migration
+智能姓名生成系统__old/
+
 # KEYHUB（本仓库不跟踪）
 KEYHUB/

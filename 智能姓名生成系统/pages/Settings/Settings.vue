@@ -303,6 +303,8 @@ import {
     getAuthUser,
     getApiBaseUrl,
     setAuthUser,
+    type AuthUser,
+    type BackendStats,
 } from "../../common/api";
 import { applyTheme, createThemeCssVars, getRuntimeThemePalette, getStoredTheme, ThemeMode, type ThemePalette } from "../../common/theme";
 import { maskPhoneNumber } from "../../common/phoneMask";
@@ -322,6 +324,38 @@ type LocalSettings = {
     autoClean: boolean;
     cloudSync: boolean;
 };
+
+interface SegmentedControlClickEvent {
+    currentIndex: number;
+}
+
+interface ToggleChangeEvent {
+    detail: {
+        value: boolean;
+    };
+}
+
+interface RadioGroupChangeEvent {
+    detail: {
+        value: string;
+    };
+}
+
+interface RangeChangeEvent {
+    detail: {
+        value: number;
+    };
+}
+
+interface PickerChangeEvent {
+    detail: {
+        value: string | number;
+    };
+}
+
+interface ModalConfirmResult {
+    confirm?: boolean;
+}
 
 const SETTINGS_STORAGE_KEY = "app_settings";
 const STYLE_OPTIONS = [
@@ -377,7 +411,7 @@ const apiOptionLabels = computed(() =>
 );
 
 const health = ref({ ok: false, version: "", loading: false });
-const stats = ref<any>(null);
+const stats = ref<BackendStats | null>(null);
 
 const themes = [
     { name: "浅色", value: "light" },
@@ -385,10 +419,10 @@ const themes = [
     { name: "自动", value: "auto" },
 ];
 
-const fontSizes = ["small", "medium", "large"];
+const fontSizes: LocalSettings["fontSize"][] = ["small", "medium", "large"];
 const fontSizeIndex = ref(1);
 
-const retentionTimes = ["7天", "30天", "永久"];
+const retentionTimes = ["7天", "30天", "永久"] as const;
 const retentionIndex = ref(1);
 const themePalette = ref<ThemePalette>(getRuntimeThemePalette());
 const themeVars = computed(() => createThemeCssVars(themePalette.value));
@@ -409,41 +443,50 @@ const restoreSettings = () => {
         if (!stored || typeof stored !== "object") {
             return;
         }
+        const settingsRecord = stored as Partial<Record<keyof LocalSettings, unknown>>;
 
         settings.generateCount =
-            typeof stored.generateCount === "number"
-                ? Math.min(10, Math.max(1, stored.generateCount))
+            typeof settingsRecord.generateCount === "number"
+                ? Math.min(10, Math.max(1, settingsRecord.generateCount))
                 : DEFAULT_SETTINGS.generateCount;
-        settings.stylePreference = STYLE_VALUES.includes(stored.stylePreference)
-            ? stored.stylePreference
+        settings.stylePreference =
+            typeof settingsRecord.stylePreference === "string" &&
+            STYLE_VALUES.includes(settingsRecord.stylePreference)
+            ? settingsRecord.stylePreference
             : DEFAULT_SETTINGS.stylePreference;
         settings.autoCopy =
-            typeof stored.autoCopy === "boolean"
-                ? stored.autoCopy
+            typeof settingsRecord.autoCopy === "boolean"
+                ? settingsRecord.autoCopy
                 : DEFAULT_SETTINGS.autoCopy;
         settings.theme =
-            stored.theme === "light" ||
-            stored.theme === "dark" ||
-            stored.theme === "auto"
-                ? stored.theme
+            settingsRecord.theme === "light" ||
+            settingsRecord.theme === "dark" ||
+            settingsRecord.theme === "auto"
+                ? settingsRecord.theme
                 : DEFAULT_SETTINGS.theme;
-        settings.fontSize = fontSizes.includes(stored.fontSize)
-            ? stored.fontSize
+        settings.fontSize =
+            settingsRecord.fontSize === "small" ||
+            settingsRecord.fontSize === "medium" ||
+            settingsRecord.fontSize === "large"
+            ? settingsRecord.fontSize
             : DEFAULT_SETTINGS.fontSize;
         settings.animation =
-            typeof stored.animation === "boolean"
-                ? stored.animation
+            typeof settingsRecord.animation === "boolean"
+                ? settingsRecord.animation
                 : DEFAULT_SETTINGS.animation;
-        settings.retentionTime = retentionTimes.includes(stored.retentionTime)
-            ? stored.retentionTime
+        settings.retentionTime =
+            settingsRecord.retentionTime === "7天" ||
+            settingsRecord.retentionTime === "30天" ||
+            settingsRecord.retentionTime === "永久"
+            ? settingsRecord.retentionTime
             : DEFAULT_SETTINGS.retentionTime;
         settings.autoClean =
-            typeof stored.autoClean === "boolean"
-                ? stored.autoClean
+            typeof settingsRecord.autoClean === "boolean"
+                ? settingsRecord.autoClean
                 : DEFAULT_SETTINGS.autoClean;
         settings.cloudSync =
-            typeof stored.cloudSync === "boolean"
-                ? stored.cloudSync
+            typeof settingsRecord.cloudSync === "boolean"
+                ? settingsRecord.cloudSync
                 : DEFAULT_SETTINGS.cloudSync;
     } catch (e) {}
 };
@@ -474,7 +517,7 @@ const handleLogin = () => {
     });
 };
 
-const applyAuthUser = (user: any) => {
+const applyAuthUser = (user: AuthUser | null | undefined) => {
     if (!user || !user.phone) {
         isLogin.value = false;
         userInfo.phone = "";
@@ -504,7 +547,7 @@ const syncAuthState = async () => {
     applyAuthUser(null);
 };
 
-const handleStyleChange = (e: any) => {
+const handleStyleChange = (e: SegmentedControlClickEvent) => {
     styleIndex.value = e.currentIndex;
     settings.stylePreference =
         STYLE_VALUES[e.currentIndex] || DEFAULT_SETTINGS.stylePreference;
@@ -518,7 +561,7 @@ const handleGenerateCountChange = (value: number | { value?: number }) => {
     persistSettings();
 };
 
-const handleAutoCopyChange = (e: any) => {
+const handleAutoCopyChange = (e: ToggleChangeEvent) => {
     settings.autoCopy = e.detail.value;
     persistSettings();
 };
@@ -530,7 +573,7 @@ const syncThemeFromStorage = () => {
     syncTheme();
 };
 
-const handleThemeChange = (e: any) => {
+const handleThemeChange = (e: RadioGroupChangeEvent) => {
     const value = (e?.detail?.value ?? "light") as ThemeMode;
     settings.theme = value;
     applyTheme(value);
@@ -538,25 +581,25 @@ const handleThemeChange = (e: any) => {
     persistSettings();
 };
 
-const handleFontSizeChange = (e: any) => {
+const handleFontSizeChange = (e: RangeChangeEvent) => {
     fontSizeIndex.value = e.detail.value;
     settings.fontSize = fontSizes[e.detail.value] || DEFAULT_SETTINGS.fontSize;
     persistSettings();
 };
 
-const handleAnimationChange = (e: any) => {
+const handleAnimationChange = (e: ToggleChangeEvent) => {
     settings.animation = e.detail.value;
     persistSettings();
 };
 
-const handleRetentionChange = (e: any) => {
-    retentionIndex.value = e.detail.value;
+const handleRetentionChange = (e: PickerChangeEvent) => {
+    retentionIndex.value = Number(e.detail.value) || 0;
     settings.retentionTime =
-        retentionTimes[e.detail.value] || DEFAULT_SETTINGS.retentionTime;
+        retentionTimes[retentionIndex.value] || DEFAULT_SETTINGS.retentionTime;
     persistSettings();
 };
 
-const handleAutoCleanChange = (e: any) => {
+const handleAutoCleanChange = (e: ToggleChangeEvent) => {
     settings.autoClean = e.detail.value;
     persistSettings();
 };
@@ -568,7 +611,7 @@ const handleBackup = () => {
     });
 };
 
-const handleCloudSyncChange = (e: any) => {
+const handleCloudSyncChange = (e: ToggleChangeEvent) => {
     settings.cloudSync = e.detail.value;
     persistSettings();
     uni.showToast({
@@ -612,7 +655,7 @@ const handleClearCache = () => {
     uni.showModal({
         title: "提示",
         content: "确定要清除缓存吗？",
-        success: (res) => {
+        success: (res: ModalConfirmResult) => {
             if (res.confirm) {
                 // 目前后端未提供清理接口，可在此扩展/cache/clear
                 uni.showToast({ title: "暂不支持，后端待扩展", icon: "none" });
@@ -669,7 +712,7 @@ const loadOptions = async () => {
             apiOptions.value = res.options.apis || [];
             // 从本地读取默认API（如果存在）
             const saved = uni.getStorageSync("preferred_api");
-            if (saved && apiOptions.value.length) {
+            if (typeof saved === "string" && apiOptions.value.length) {
                 const idx = apiOptions.value.indexOf(saved);
                 apiIndex.value = idx >= 0 ? idx : 0;
             }
@@ -699,7 +742,7 @@ const refreshHealth = async () => {
     }
 };
 
-const handleApiChange = (e: any) => {
+const handleApiChange = (e: PickerChangeEvent) => {
     apiIndex.value = Number(e.detail.value) || 0;
     const value = apiOptions.value[apiIndex.value];
     if (value) {

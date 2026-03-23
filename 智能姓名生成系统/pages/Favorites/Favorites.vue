@@ -70,6 +70,7 @@
 <script lang="ts" setup>
 	import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
 	import { onLoad, onShow } from '@dcloudio/uni-app';
+	import { getFavorites, deleteFavorites, type FavoriteItem } from '../../common/api';
 	import { createThemeCssVars, getRuntimeThemePalette, type ThemePalette } from '../../common/theme';
 	import CustomNavBar from '../../components/CustomNavBar.vue';
 	import uniIcons from '@/uni_modules/uni-icons/components/uni-icons/uni-icons.vue';
@@ -103,12 +104,11 @@
 	};
 
 	// 收藏列表数据（从后端获取）
-	import { getFavorites, deleteFavorites } from '../../common/api';
-	const favorites = ref<any[]>([]);
+	const favorites = ref<FavoriteItem[]>([]);
 
-	const normalizeValue = (value: any) => String(value || '').trim().toLowerCase();
+	const normalizeValue = (value: unknown) => String(value || '').trim().toLowerCase();
 
-	const getItemTagValues = (item: any) => {
+	const getItemTagValues = (item: FavoriteItem) => {
 		const tags = new Set<string>();
 		const style = normalizeValue(item?.style);
 		const gender = normalizeValue(item?.gender);

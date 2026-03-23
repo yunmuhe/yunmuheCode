@@ -1,5 +1,36 @@
-declare const process: any;
-declare const uni: any;
+declare const process:
+  | {
+      env?: Record<string, string | undefined>;
+    }
+  | undefined;
+
+interface UniRequestSuccessResult {
+  statusCode: number;
+  data: unknown;
+}
+
+interface UniRequestFailResult {
+  errMsg?: string;
+}
+
+interface UniRequestOptions {
+  url: string;
+  method: "GET" | "POST" | "DELETE";
+  data?: RequestData;
+  timeout: number;
+  header: Record<string, string>;
+  success: (res: UniRequestSuccessResult) => void;
+  fail: (error: UniRequestFailResult) => void;
+}
+
+interface UniStorageLike {
+  request: (options: UniRequestOptions) => void;
+  setStorageSync: (key: string, value: unknown) => void;
+  getStorageSync: (key: string) => unknown;
+  removeStorageSync: (key: string) => void;
+}
+
+declare const uni: UniStorageLike;
 
 const BASE_URL =
   (typeof process !== "undefined" && process?.env?.VITE_API_BASE_URL) ||
@@ -19,8 +50,26 @@ const AUTH_USER_KEY = "auth_user";
 interface RequestOptions {
   url: string;
   method?: "GET" | "POST" | "DELETE";
-  data?: Record<string, any>;
+  data?: RequestData;
   headers?: Record<string, string>;
+}
+
+export type RequestData = Record<string, unknown>;
+export type ApiFeatureValue = string | number | boolean | null;
+export type GeneratedNameFeatures = Record<string, ApiFeatureValue>;
+
+export interface BackendCacheStats {
+  active_entries?: number;
+  expired_entries?: number;
+  total_entries?: number;
+}
+
+export interface BackendStats {
+  available_apis?: number;
+  today_generated?: number;
+  cache_stats?: BackendCacheStats;
+  api_status?: Record<string, unknown>;
+  [key: string]: unknown;
 }
 
 interface GenerateNamesPayload {
@@ -39,7 +88,7 @@ export interface GeneratedName {
   name: string;
   meaning: string;
   source?: string;
-  features?: Record<string, any>;
+  features?: GeneratedNameFeatures;
   created_at?: number;
 }
 
@@ -68,19 +117,19 @@ export interface OptionsResponse {
 
 export interface StatsResponse {
   success: boolean;
-  stats: Record<string, any>;
+  stats: BackendStats;
   error?: string;
 }
 
 export interface AuthUser {
-	id: number;
-	phone: string;
-	role?: "admin" | "user" | string;
-	is_enabled?: boolean;
-	must_change_password?: boolean;
-	created_at?: string;
-	updated_at?: string;
-	last_login_at?: string;
+  id: number;
+  phone: string;
+  role?: "admin" | "user" | string;
+  is_enabled?: boolean;
+  must_change_password?: boolean;
+  created_at?: string;
+  updated_at?: string;
+  last_login_at?: string;
 }
 
 export interface AuthRegisterResponse {
@@ -122,24 +171,29 @@ const request = <T>(options: RequestOptions): Promise<T> => {
       data,
       timeout: REQUEST_TIMEOUT_MS,
       header: requestHeaders,
-      success: (res: any) => {
+      success: (res) => {
         if (res.statusCode >= 200 && res.statusCode < 300) {
           resolve(res.data as T);
           return;
         }
-        const message =
-          (typeof res.data === "object" &&
-            res.data &&
-            "error" in res.data &&
-            (res.data as any).error) ||
-          `Request failed (${res.statusCode})`;
-        reject(new Error(message as string));
+        reject(new Error(getRequestErrorMessage(res.data, res.statusCode)));
       },
-      fail: (error: any) => {
+      fail: (error) => {
         reject(new Error(error.errMsg || "Network request failed"));
       },
     });
   });
+};
+
+const getRequestErrorMessage = (data: unknown, statusCode: number): string => {
+  if (typeof data === "object" && data !== null && "error" in data) {
+    const error = data.error;
+    if (typeof error === "string" && error.trim()) {
+      return error;
+    }
+  }
+
+  return `Request failed (${statusCode})`;
 };
 
 export const getApiBaseUrl = () => BASE_URL;
@@ -149,7 +203,8 @@ export const setAuthToken = (token: string) => {
 };
 
 export const getAuthToken = (): string => {
-  return uni.getStorageSync(AUTH_TOKEN_KEY) || "";
+  const stored = uni.getStorageSync(AUTH_TOKEN_KEY);
+  return typeof stored === "string" ? stored : "";
 };
 
 export const clearAuthToken = () => {
@@ -162,7 +217,8 @@ export const setAuthUser = (user: AuthUser) => {
 };
 
 export const getAuthUser = (): AuthUser | null => {
-  return uni.getStorageSync(AUTH_USER_KEY) || null;
+  const stored = uni.getStorageSync(AUTH_USER_KEY);
+  return stored && typeof stored === "object" ? (stored as AuthUser) : null;
 };
 
 export const authRegister = (payload: {
@@ -262,7 +318,10 @@ export const getFavorites = (): Promise<{
   success: boolean;
   items: FavoriteItem[];
 }> => {
-  return request({
+  return request<{
+    success: boolean;
+    items: FavoriteItem[];
+  }>({
     url: "/favorites",
     method: "GET",
   });
@@ -271,7 +330,7 @@ export const getFavorites = (): Promise<{
 export const addFavorite = (
   item: FavoriteItem,
 ): Promise<{ success: boolean; item: FavoriteItem }> => {
-  return request({
+  return request<{ success: boolean; item: FavoriteItem }>({
     url: "/favorites",
     method: "POST",
     data: item,
@@ -282,7 +341,7 @@ export const deleteFavorites = (
   ids: string[] | string,
 ): Promise<{ success: boolean; deleted: string[] }> => {
   const idsArray = Array.isArray(ids) ? ids : [ids];
-  return request({
+  return request<{ success: boolean; deleted: string[] }>({
     url: "/favorites",
     method: "DELETE",
     data: { ids: idsArray },

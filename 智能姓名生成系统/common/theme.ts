@@ -1,4 +1,23 @@
-declare const uni: any;
+interface UniThemeLike {
+	getSystemInfoSync: () => { theme?: string };
+	getStorageSync: (key: string) => unknown;
+	setNavigationBarColor: (options: { frontColor: string; backgroundColor: string }) => void;
+	setBackgroundColor: (options: {
+		backgroundColor: string;
+		backgroundColorTop: string;
+		backgroundColorBottom: string;
+	}) => void;
+	setTabBarStyle: (options: {
+		color: string;
+		selectedColor: string;
+		backgroundColor: string;
+		borderStyle: 'white' | 'black';
+	}) => void;
+	setStorageSync: (key: string, data: unknown) => void;
+	$emit?: (event: string, payload: unknown) => void;
+}
+
+declare const uni: UniThemeLike;
 
 export type ThemeMode = 'light' | 'dark' | 'auto';
 export type ThemeKey = ThemeMode;

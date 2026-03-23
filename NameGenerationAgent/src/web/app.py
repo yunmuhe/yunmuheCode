@@ -457,6 +457,10 @@ def get_models():
 def get_stats():
     """获取系统统计信息"""
     try:
+        auth_service = get_auth_service()
+        current_user = (
+            get_current_user_from_token(auth_service) if auth_service else None
+        )
         name_generator = get_name_generator()
         if name_generator:
             stats = name_generator.get_generation_stats()
@@ -467,6 +471,14 @@ def get_stats():
                 "api_status": {"mock": {"enabled": True}},
                 "cache_stats": {"active_entries": 0},
             }
+
+        stats["today_generated"] = 0
+        if current_user:
+            record_service = get_record_service()
+            if record_service:
+                stats["today_generated"] = record_service.count_user_records_today(
+                    int(current_user["id"])
+                )
 
         return jsonify({"success": True, "stats": stats})
     except Exception as e:

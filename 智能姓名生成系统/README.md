@@ -1,10 +1,10 @@
 # 智能姓名生成系统（前端 · uni-app）
 
-本前端通过 HTTP API 调用本地或远程部署的智能体（Flask 服务）完成姓名生成。已适配 `H5/小程序/APP` 多端的请求封装。
+本前端通过 HTTP API 调用本地或远程部署的智能体（Flask 服务）完成姓名生成。当前保留 `H5/微信小程序` 两端能力。
 
 ## 核心特性
 
-- 多端支持：H5、微信小程序、Android/iOS APP
+- 多端支持：H5、微信小程序
 - 固定服务器地址：使用natapp公网映射地址，无需配置
 - 主题系统：7种主题切换（浅色/深色/自动/蓝色/绿色/粉色/紫色）
 - 收藏与历史：本地存储常用姓名和生成历史
@@ -97,31 +97,6 @@ ALLOWED_ORIGINS=http://localhost:5173,http://127.0.0.1:5173,http://nameagent.nat
    ```
 2. 检查防火墙是否阻止5000端口
 3. 检查后端是否正常启动（查看终端输出）
-
-### Android模拟器连接问题
-
-如需在Android模拟器中访问本机后端：
-
-1. 将 `common/api.ts` 中的 `BASE_URL` 改为：
-   ```typescript
-   const BASE_URL = 'http://10.0.2.2:5000';  // Android模拟器专用地址
-   ```
-2. 或使用natapp公网地址（无需修改代码）
-
-### Android真机连接问题
-
-如需在Android真机中访问本机后端：
-
-1. 确保手机和电脑在同一局域网
-2. 查看电脑局域网IP：
-   ```bash
-   ipconfig | findstr "IPv4"
-   ```
-3. 将 `common/api.ts` 中的 `BASE_URL` 改为：
-   ```typescript
-   const BASE_URL = 'http://192.168.x.x:5000';  // 替换为电脑IP
-   ```
-4. 或使用natapp公网地址（无需修改代码，推荐）
 
 ### H5开发时跨域问题
 

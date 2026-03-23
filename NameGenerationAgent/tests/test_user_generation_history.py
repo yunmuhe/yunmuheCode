@@ -20,6 +20,13 @@ class DummyNameGenerator:
             )
         return {"success": True, "names": names, "api_name": "mock", "model": "mock-model"}
 
+    def get_generation_stats(self):
+        return {
+            "available_apis": 1,
+            "api_status": {"mock": {"enabled": True}},
+            "cache_stats": {"active_entries": 0},
+        }
+
 
 def _auth_header(token: str) -> dict:
     return {"Authorization": f"Bearer {token}"}
@@ -76,3 +83,36 @@ def test_generate_and_history_are_user_scoped(tmp_path, monkeypatch):
         assert len(items_b) == 1
         assert "用户A角色" in items_a[0]["description"]
         assert "用户B角色" in items_b[0]["description"]
+
+
+def test_stats_returns_today_generated_for_current_user(tmp_path, monkeypatch):
+    test_db = tmp_path / "stats_history_test.db"
+    db_url = f"sqlite:///{test_db}"
+    monkeypatch.setattr(auth_module, "auth_service", AuthService(db_url=db_url))
+    monkeypatch.setattr(record_module, "record_service", RecordService(db_url=db_url))
+    monkeypatch.setattr(web_app_module, "get_name_generator", lambda: DummyNameGenerator())
+
+    app = web_app_module.app
+    app.config["TESTING"] = True
+
+    with app.test_client() as client:
+        token_a = _register_and_login(client, "13500135000")
+        token_b = _register_and_login(client, "13400134000")
+
+        client.post(
+            "/generate",
+            headers=_auth_header(token_a),
+            json={"description": "用户A今日记录", "count": 2, "cultural_style": "chinese_modern", "gender": "neutral", "age": "adult"},
+        )
+        client.post(
+            "/generate",
+            headers=_auth_header(token_b),
+            json={"description": "用户B今日记录", "count": 1, "cultural_style": "chinese_modern", "gender": "neutral", "age": "adult"},
+        )
+
+        stats_response = client.get("/stats", headers=_auth_header(token_a))
+
+        assert stats_response.status_code == 200
+        payload = stats_response.get_json()
+        assert payload["success"] is True
+        assert payload["stats"]["today_generated"] == 1
