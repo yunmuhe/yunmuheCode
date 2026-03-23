@@ -1,15 +1,13 @@
 <template>
-	<view class="page-container">
+	<view class="page-container" :style="themeVars">
 		<!-- 顶部导航栏 -->
-		<view class="nav-bar">
-			<button class="back-btn" @click="goBack">
-				<uni-icons type="arrowleft" size="24" color="#333"></uni-icons>
-			</button>
-			<view class="nav-title">我的收藏</view>
-			<view class="nav-edit" @click="toggleEditMode">
-				<uni-icons type="compose" size="20" color="#333"></uni-icons>
-			</view>
-		</view>
+		<CustomNavBar title="我的收藏">
+			<template #right>
+				<view class="nav-edit" @click="toggleEditMode">
+					<uni-icons type="compose" size="20" :color="themePalette.textPrimary"></uni-icons>
+				</view>
+			</template>
+		</CustomNavBar>
 
 		<!-- 标签筛选区 -->
 		<scroll-view class="tag-container" scroll-x>
@@ -23,11 +21,13 @@
 		<scroll-view class="content-container" scroll-y>
 			<!-- 空状态 -->
 			<view v-if="favorites.length === 0" class="empty-state">
-				<image class="empty-image"
-					src="https://ai-public.mastergo.com/ai/img_res/aae7c630a469d167b534dbe4c3fa9c0a.jpg"
-					mode="aspectFit" />
+				<image class="empty-image" src="/static/common/favorites-empty.svg" mode="aspectFit" />
 				<view class="empty-text">暂无收藏内容，快去生成页发现你喜欢的名字吧！</view>
 				<button class="empty-button" type="primary" @click="goToGenerate">去生成名字</button>
+			</view>
+			<view v-else-if="filteredFavorites.length === 0" class="empty-state">
+				<view class="empty-text">当前筛选下暂无收藏，试试切换标签看看。</view>
+				<button class="empty-button secondary" @click="resetFilters">重置筛选</button>
 			</view>
 
 			<!-- 收藏列表 -->
@@ -37,7 +37,7 @@
 					<view class="card-header">
 						<text class="name">{{ item.name }}</text>
 						<view v-if="!editMode" class="favorite-icon" @click="toggleFavorite(item.id)">
-							<uni-icons type="heart-filled" size="20" color="#ff4d4f"></uni-icons>
+							<uni-icons type="heart-filled" size="20" :color="themePalette.danger"></uni-icons>
 						</view>
 						<checkbox v-else class="select-checkbox" :checked="selectedItems.includes(item.id)"
 							@click="toggleSelect(item.id)" />
@@ -68,8 +68,10 @@
 </template>
 
 <script lang="ts" setup>
-	import { ref, computed } from 'vue';
-	import { onLoad } from '@dcloudio/uni-app';
+	import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
+	import { onLoad, onShow } from '@dcloudio/uni-app';
+	import { createThemeCssVars, getRuntimeThemePalette, type ThemePalette } from '../../common/theme';
+	import CustomNavBar from '../../components/CustomNavBar.vue';
 	import uniIcons from '@/uni_modules/uni-icons/components/uni-icons/uni-icons.vue';
 
 	// 标签数据
@@ -93,10 +95,72 @@
 
 	// 选中的项目
 	const selectedItems = ref<string[]>([]);
+	const themePalette = ref<ThemePalette>(getRuntimeThemePalette());
+	const themeVars = computed(() => createThemeCssVars(themePalette.value));
+
+	const syncTheme = () => {
+		themePalette.value = getRuntimeThemePalette();
+	};
 
 	// 收藏列表数据（从后端获取）
 	import { getFavorites, deleteFavorites } from '../../common/api';
 	const favorites = ref<any[]>([]);
+
+	const normalizeValue = (value: any) => String(value || '').trim().toLowerCase();
+
+	const getItemTagValues = (item: any) => {
+		const tags = new Set<string>();
+		const style = normalizeValue(item?.style);
+		const gender = normalizeValue(item?.gender);
+
+		const styleAliasMap: Record<string, string[]> = {
+			classic: ['classic'],
+			'古典': ['classic'],
+			'古典中文': ['classic', 'chinese'],
+			traditional: ['classic'],
+			'传统中文': ['classic', 'chinese'],
+			modern: ['modern'],
+			'现代': ['modern'],
+			'现代中文': ['modern', 'chinese'],
+			fantasy: ['fantasy'],
+			'奇幻': ['fantasy'],
+			'奇幻风格': ['fantasy'],
+			chinese: ['chinese'],
+			'中式': ['chinese'],
+			'中文': ['chinese'],
+			western: ['western'],
+			'西式': ['western'],
+			'西方': ['western'],
+			'西方风格': ['western'],
+			japanese: ['japanese'],
+			'日式': ['japanese'],
+			'日式风格': ['japanese'],
+		};
+
+		const genderAliasMap: Record<string, string[]> = {
+			male: ['male'],
+			'男性': ['male'],
+			female: ['female'],
+			'女性': ['female'],
+			neutral: ['unisex'],
+			unisex: ['unisex'],
+			'中性': ['unisex'],
+		};
+
+		(styleAliasMap[style] || []).forEach((tag) => tags.add(tag));
+		(genderAliasMap[gender] || []).forEach((tag) => tags.add(tag));
+
+		if (!tags.size) {
+			if (style) {
+				tags.add(style);
+			}
+			if (gender) {
+				tags.add(gender);
+			}
+		}
+
+		return tags;
+	};
 
 	// 过滤后的收藏列表
 	const filteredFavorites = computed(() => {
@@ -105,15 +169,20 @@
 		}
 
 		return favorites.value.filter(item => {
-			const styleMatch = selectedTags.value.includes(item.style.toLowerCase());
-			const genderMatch = selectedTags.value.includes(item.gender.toLowerCase());
-			return styleMatch || genderMatch;
+			const itemTags = getItemTagValues(item);
+			return selectedTags.value.some((tag) => itemTags.has(tag));
 		});
 	});
 
+	const visibleFavoriteIds = computed(() => filteredFavorites.value.map((item) => item.id));
+
 	// 是否全选
 	const isAllSelected = computed(() => {
-		return selectedItems.value.length === filteredFavorites.value.length;
+		return filteredFavorites.value.length > 0 && selectedItems.value.length === filteredFavorites.value.length;
+	});
+
+	watch(visibleFavoriteIds, (ids) => {
+		selectedItems.value = selectedItems.value.filter((id) => ids.includes(id));
 	});
 
 	// 切换标签
@@ -140,6 +209,10 @@
 		if (selectedTags.value.length === 0) {
 			selectedTags.value = ['all'];
 		}
+	};
+
+	const resetFilters = () => {
+		selectedTags.value = ['all'];
 	};
 
 	// 切换编辑模式
@@ -199,7 +272,7 @@
 
 	// 批量导出
 	const batchExport = () => {
-		const exportData = favorites.value.filter(item => selectedItems.value.includes(item.id));
+		const exportData = filteredFavorites.value.filter(item => selectedItems.value.includes(item.id));
 		console.log('导出数据:', exportData);
 		uni.showToast({
 			title: `已导出${exportData.length}项`,
@@ -220,10 +293,6 @@
 		}
 	};
 
-	const goBack = () => {
-		uni.navigateBack();
-	};
-
 	const goToGenerate = () => {
 		uni.navigateTo({
 			url: '/pages/Generate/Generate'
@@ -231,7 +300,24 @@
 	};
 
 	onLoad(() => {
+		syncTheme();
 		loadFavorites();
+	});
+
+	onShow(() => {
+		syncTheme();
+	});
+
+	onMounted(() => {
+		if (typeof uni.$on === 'function') {
+			uni.$on('theme-changed', syncTheme);
+		}
+	});
+
+	onUnmounted(() => {
+		if (typeof uni.$off === 'function') {
+			uni.$off('theme-changed', syncTheme);
+		}
 	});
 </script>
 
@@ -244,37 +330,7 @@
 		display: flex;
 		flex-direction: column;
 		height: 100%;
-		background-color: #f5f5f5;
-	}
-
-	.nav-bar {
-		display: flex;
-		justify-content: space-between;
-		align-items: center;
-		height: 44px;
-		background-color: #fff;
-		box-shadow: 0 2rpx 6rpx rgba(0, 0, 0, 0.05);
-		padding: 0 10px;
-		flex-shrink: 0;
-	}
-
-	.back-btn {
-		width: 30px;
-		height: 30px;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		border: none;
-		background: none;
-		padding: 0;
-	}
-
-	.nav-title {
-		flex: 1;
-		font-size: 16px;
-		font-weight: bold;
-		color: #333;
-		text-align: center;
+		background-color: var(--page-bg);
 	}
 
 	.nav-edit {
@@ -288,8 +344,8 @@
 	.tag-container {
 		white-space: nowrap;
 		padding: 20rpx 24rpx;
-		background-color: #fff;
-		border-bottom: 1px solid #f0f0f0;
+		background-color: var(--surface);
+		border-bottom: 1px solid var(--border-color);
 	}
 
 	.tag-item {
@@ -298,13 +354,13 @@
 		margin-right: 16rpx;
 		border-radius: 40rpx;
 		font-size: 12px;
-		color: #666;
-		background-color: #f5f5f5;
+		color: var(--text-secondary);
+		background-color: var(--surface-muted);
 	}
 
 	.tag-item.active {
-		color: #fff;
-		background-color: #1890ff;
+		color: var(--accent-contrast);
+		background-color: var(--accent);
 	}
 
 	.content-container {
@@ -329,8 +385,10 @@
 
 	.empty-text {
 		font-size: 14px;
-		color: #999;
+		color: var(--text-secondary);
 		margin-bottom: 32rpx;
+		text-align: center;
+		line-height: 1.6;
 	}
 
 	.empty-button {
@@ -339,9 +397,14 @@
 		line-height: 80rpx;
 		font-size: 32rpx;
 		border-radius: 40rpx;
-		background-color: #4a90e2;
-		color: white;
+		background-color: var(--accent);
+		color: var(--accent-contrast);
 		border: none;
+	}
+
+	.empty-button.secondary {
+		background-color: var(--accent-soft);
+		color: var(--accent);
 	}
 
 	.favorites-grid {
@@ -351,16 +414,16 @@
 	}
 
 	.favorite-card {
-		background-color: #fff;
+		background-color: var(--surface);
 		border-radius: 12rpx;
 		padding: 24rpx;
-		box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.05);
+		box-shadow: var(--shadow-soft);
 		position: relative;
 	}
 
 	.favorite-card.selected {
-		background-color: #f0f9ff;
-		border: 1px solid #1890ff;
+		background-color: var(--accent-soft);
+		border: 1px solid var(--accent);
 	}
 
 	.card-header {
@@ -373,7 +436,7 @@
 	.name {
 		font-size: 16px;
 		font-weight: 500;
-		color: #333;
+		color: var(--text-primary);
 		flex: 1;
 		overflow: hidden;
 		text-overflow: ellipsis;
@@ -395,7 +458,7 @@
 	.meaning {
 		display: block;
 		font-size: 13px;
-		color: #666;
+		color: var(--text-secondary);
 		margin-bottom: 16rpx;
 		overflow: hidden;
 		text-overflow: ellipsis;
@@ -416,18 +479,18 @@
 	}
 
 	.style-tag {
-		color: #722ed1;
-		background-color: #f9f0ff;
+		color: var(--accent);
+		background-color: var(--accent-soft);
 	}
 
 	.gender-tag {
-		color: #13c2c2;
-		background-color: #e6fffb;
+		color: var(--success);
+		background-color: var(--surface-soft);
 	}
 
 	.time {
 		font-size: 11px;
-		color: #999;
+		color: var(--text-secondary);
 	}
 
 	.batch-actions {
@@ -438,8 +501,8 @@
 		display: flex;
 		align-items: center;
 		padding: 16rpx 24rpx;
-		background-color: #fff;
-		box-shadow: 0 -2rpx 8rpx rgba(0, 0, 0, 0.05);
+		background-color: var(--surface);
+		box-shadow: var(--shadow-soft);
 		z-index: 100;
 	}
 
@@ -451,13 +514,13 @@
 
 	.select-text {
 		font-size: 14px;
-		color: #333;
+		color: var(--text-primary);
 		margin-left: 8rpx;
 	}
 
 	.selected-count {
 		font-size: 12px;
-		color: #666;
+		color: var(--text-secondary);
 		flex: 1;
 	}
 

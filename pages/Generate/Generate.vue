@@ -1,15 +1,17 @@
 ﻿<template>
-	<view class="generate-page">
+	<view class="generate-page" :style="themeVars">
 		<!-- 顶部导航栏 -->
-		<view class="nav-bar">
-			<button class="back-btn" @click="handleBack">
-				<uni-icons type="arrowleft" size="24" color="#333"></uni-icons>
-			</button>
-			<text class="page-title">姓名生成助手</text>
-			<button class="batch-btn" @click="handleBatchGenerate">
-				<uni-icons type="list" size="24" color="#333"></uni-icons>
-			</button>
-		</view>
+		<CustomNavBar
+			title="姓名生成助手"
+			fallback-url="/pages/Index/Index"
+			fallback-mode="reLaunch"
+		>
+			<template #right>
+				<button class="batch-btn" @click="handleBatchGenerate">
+					<uni-icons type="list" size="24" :color="themePalette.textPrimary"></uni-icons>
+				</button>
+			</template>
+		</CustomNavBar>
 		<!-- 后端连接状态 -->
 		<view class="health-bar">
 			<view class="health-info">
@@ -18,7 +20,7 @@
 				<text class="health-sub" v-if="health.version">v{{ health.version }}</text>
 			</view>
 			<button class="refresh-btn" @click="refreshHealth" :disabled="health.loading">
-				<uni-icons v-if="!health.loading" type="refresh" size="20" color="#333"></uni-icons>
+				<uni-icons v-if="!health.loading" type="refresh" size="20" :color="themePalette.textPrimary"></uni-icons>
 				<uni-load-more v-else status="loading" iconType="circle" :showText="false" />
 			</button>
 		</view>
@@ -90,14 +92,24 @@
 				</view>
 				<!-- 用户最新请求 -->
 				<view class="message user-message" v-if="lastQuery">
-					<view class="message-bubble">
-						<text class="message-text">{{ lastQuery }}</text>
+				<view class="message-bubble">
+					<text class="message-text">{{ lastQuery }}</text>
+				</view>
+			</view>
+			<view class="message ai-message" v-if="generationError && !isGenerating">
+				<view class="avatar error-avatar">
+					<uni-icons type="info" size="20" :color="themePalette.accentContrast"></uni-icons>
+				</view>
+				<view class="message-content">
+					<view class="message-bubble error-bubble">
+						<text class="message-text">{{ generationError }}</text>
 					</view>
 				</view>
+			</view>
 				<!-- AI回复 -->
 				<view class="message ai-message" v-if="generatedNames.length">
 					<view class="avatar">
-						<uni-icons type="person" size="24" color="#fff"></uni-icons>
+						<uni-icons type="person" size="24" :color="themePalette.accentContrast"></uni-icons>
 					</view>
 					<view class="message-content">
 						<view class="message-bubble">
@@ -112,11 +124,16 @@
 								<view class="card-header">
 									<text class="name-text">{{ name.name }}</text>
 									<view class="actions">
-										<button class="action-btn" @click="toggleFavorite(index)">
+										<button
+											class="action-btn"
+											:class="{ pending: isFavoritePending(name.id) }"
+											:disabled="isFavoritePending(name.id)"
+											@click="toggleFavorite(index)"
+										>
 											<uni-icons
 												:type="name.isFavorite ? 'heart-filled' : 'heart'"
 												size="20"
-												:color="name.isFavorite ? '#ff6b6b' : '#999'"
+												:color="isFavoritePending(name.id) ? themePalette.disabledIcon : name.isFavorite ? themePalette.danger : themePalette.textSecondary"
 											></uni-icons>
 										</button>
 									</view>
@@ -135,8 +152,8 @@
 						</view>
 					</view>
 				</view>
-				<view class="empty-state" v-else-if="!isGenerating">
-					<uni-icons type="light" size="24" color="#999"></uni-icons>
+				<view class="empty-state" v-else-if="!isGenerating && !generationError">
+					<uni-icons type="light" size="24" :color="themePalette.textSecondary"></uni-icons>
 					<text class="empty-text">输入描述并点击发送即可生成姓名</text>
 				</view>
 			</scroll-view>
@@ -147,6 +164,7 @@
 				<textarea
 					v-model="description"
 					placeholder="请输入您希望生成姓名的相关描述..."
+					:placeholder-style="placeholderStyle"
 					class="description-input"
 					:auto-height="true"
 					maxlength="500"
@@ -154,15 +172,15 @@
 				<view class="char-count">{{ description.length }}/500</view>
 			</view>
 			<button class="send-btn" @click="handleGenerate" :disabled="!description.trim() || isGenerating">
-				<uni-icons v-if="!isGenerating" type="paperplane" size="24" color="#fff"></uni-icons>
+				<uni-icons v-if="!isGenerating" type="paperplane" size="24" :color="themePalette.accentContrast"></uni-icons>
 				<uni-load-more v-else status="loading" iconType="circle" :showText="false" />
 			</button>
 		</view>
 	</view>
 </template>
 <script lang="ts" setup>
-	import { ref, computed, nextTick, watch } from 'vue';
-	import { onLoad } from '@dcloudio/uni-app';
+	import { ref, computed, nextTick, watch, onMounted, onUnmounted } from 'vue';
+	import { onLoad, onShow } from '@dcloudio/uni-app';
 	import {
 		fetchBackendOptions,
 		generateNames as generateNamesApi,
@@ -171,9 +189,12 @@
 		addFavorite,
 		deleteFavorites,
 		getModels,
+		getAuthUser,
 		type GeneratedName,
 		type ModelInfo,
 	} from '../../common/api';
+	import { createThemeCssVars, getRuntimeThemePalette, type ThemePalette } from '../../common/theme';
+	import CustomNavBar from '../../components/CustomNavBar.vue';
 	import uniIcons from '@/uni_modules/uni-icons/components/uni-icons/uni-icons.vue';
 	import uniLoadMore from '@/uni_modules/uni-load-more/components/uni-load-more/uni-load-more.vue';
 
@@ -183,11 +204,22 @@
 		domId: string;
 	}
 
+	interface StoredAppSettings {
+		generateCount?: number;
+		stylePreference?: string;
+		autoCopy?: boolean;
+	}
+
 	const description = ref('');
 	const isGenerating = ref(false);
 	const lastQuery = ref('');
+	const generationError = ref('');
 	const generatedNames = ref<NameCard[]>([]);
 	const scrollIntoViewId = ref('');
+	const favoritePendingIds = ref<string[]>([]);
+	const themePalette = ref<ThemePalette>(getRuntimeThemePalette());
+	const themeVars = computed(() => createThemeCssVars(themePalette.value));
+	const placeholderStyle = computed(() => `color:${themePalette.value.textSecondary};`);
 
 	const availableStyles = ref<string[]>([]);
 	const availableGenders = ref<string[]>([]);
@@ -220,6 +252,10 @@
 		version: '',
 		loading: false,
 	});
+
+	const syncTheme = () => {
+		themePalette.value = getRuntimeThemePalette();
+	};
 
 	const styleLabelMap: Record<string, string> = {
 		chinese_modern: '现代中文',
@@ -323,6 +359,51 @@
 		return `generated-${base.replace(/[^a-zA-Z0-9_-]/g, '')}`;
 	};
 
+	const getStoredAppSettings = (): StoredAppSettings => {
+		try {
+			const stored = uni.getStorageSync('app_settings');
+			return stored && typeof stored === 'object' ? stored : {};
+		} catch (error) {
+			return {};
+		}
+	};
+
+	const applyStoredPreferences = () => {
+		const storedSettings = getStoredAppSettings();
+		if (typeof storedSettings.generateCount === 'number') {
+			const matchedCountIndex = countValues.value.findIndex((value) => value === storedSettings.generateCount);
+			if (matchedCountIndex >= 0) {
+				countIndex.value = matchedCountIndex;
+			}
+		}
+
+		if (typeof storedSettings.stylePreference === 'string' && availableStyles.value.length) {
+			const matchedStyleIndex = availableStyles.value.indexOf(storedSettings.stylePreference);
+			if (matchedStyleIndex >= 0) {
+				styleIndex.value = matchedStyleIndex;
+			}
+		}
+	};
+
+	const copyResultsIfNeeded = (names: NameCard[]) => {
+		const storedSettings = getStoredAppSettings();
+		if (!storedSettings.autoCopy || !names.length || typeof uni.setClipboardData !== 'function') {
+			return;
+		}
+
+		const content = names.map((item) => item.name).join('\n');
+		uni.setClipboardData({
+			data: content,
+			showToast: false,
+			success: () => {
+				uni.showToast({
+					title: '结果已自动复制',
+					icon: 'none',
+				});
+			},
+		});
+	};
+
 	const loadOptions = async () => {
 		try {
 			const res = await fetchBackendOptions();
@@ -359,6 +440,8 @@
 				} else if (apiIndex.value >= availableApis.value.length) {
 					apiIndex.value = 0;
 				}
+
+				applyStoredPreferences();
 			} else {
 				throw new Error(res.error || '未能获取可用选项');
 			}
@@ -374,7 +457,7 @@
 	};
 
 	// 加载模型列表
-	const loadModels = async (retryCount = 0) => {
+	const loadModels = async (retryCount = 0): Promise<void> => {
 		try {
 			loadingModels.value = true;
 			const res = await getModels();
@@ -388,10 +471,10 @@
 			}
 		} catch (error) {
 			console.warn('加载模型列表失败:', error);
-			// 失败时自动重试一次
 			if (retryCount < 1) {
-				setTimeout(() => loadModels(retryCount + 1), 2000);
-				return; // 保持 loadingModels 为 true
+				await new Promise((resolve) => setTimeout(resolve, 2000));
+				await loadModels(retryCount + 1);
+				return;
 			}
 		} finally {
 			loadingModels.value = false;
@@ -414,7 +497,13 @@
 		}
 	});
 
-	onLoad(async () => {
+	onLoad(async (options) => {
+		syncTheme();
+		const preset = typeof options?.preset === 'string' ? options.preset.trim() : '';
+		if (preset) {
+			description.value = preset;
+		}
+
 		// 先加载可用选项（确保 currentApi 有值）
 		await loadOptions();
 
@@ -425,12 +514,27 @@
 		refreshHealth();
 	});
 
-	const handleBack = () => {
-		uni.navigateBack();
-	};
+	onShow(() => {
+		syncTheme();
+	});
+
+	onMounted(() => {
+		if (typeof uni.$on === 'function') {
+			uni.$on('theme-changed', syncTheme);
+		}
+	});
+
+	onUnmounted(() => {
+		if (typeof uni.$off === 'function') {
+			uni.$off('theme-changed', syncTheme);
+		}
+	});
+
 	const handleBatchGenerate = () => {
-		// 批量生成功能逻辑
-		console.log('进入批量生成页面');
+		uni.showToast({
+			title: '批量生成暂未开放',
+			icon: 'none',
+		});
 	};
 	const handleGenerate = async () => {
 		if (!description.value.trim()) {
@@ -441,6 +545,14 @@
 			return;
 		}
 		const promptText = description.value.trim();
+		lastQuery.value = promptText;
+		generationError.value = '';
+		generatedNames.value = [];
+		apiMeta.value = {
+			apiName: '',
+			model: '',
+		};
+		scrollIntoViewId.value = '';
 		isGenerating.value = true;
 		uni.showLoading({
 			title: '生成中...',
@@ -477,13 +589,13 @@
 				style: styleLabel,
 				domId: buildDomId(item.id, index),
 			}));
+			copyResultsIfNeeded(generatedNames.value);
 
 			apiMeta.value = {
 				apiName: res.api_name || '',
 				model: res.model || '',
 			};
 
-			lastQuery.value = promptText;
 			description.value = '';
 
 			nextTick(() => {
@@ -498,39 +610,66 @@
 				});
 			}
 		} catch (error : any) {
-				uni.showToast({
-					title: error?.message || '生成失败，请稍后再试',
-					icon: 'none',
-					duration: 2000,
-				});
+			generationError.value = error?.message || '生成失败，请稍后再试';
+			uni.showToast({
+				title: generationError.value,
+				icon: 'none',
+				duration: 2000,
+			});
 		} finally {
 			isGenerating.value = false;
 			uni.hideLoading();
 		}
 	};
-	const toggleFavorite = (index : number) => {
+	const isFavoritePending = (id?: string) => {
+		if (!id) return false;
+		return favoritePendingIds.value.includes(id);
+	};
+
+	const toggleFavorite = async (index : number) => {
 		if (!generatedNames.value[index]) return;
+		const authUser = getAuthUser();
+		if (!authUser?.phone) {
+			uni.showToast({ title: '请先登录后再收藏', icon: 'none' });
+			uni.navigateTo({
+				url: '/pages/Auth/Auth',
+			});
+			return;
+		}
 		const item = generatedNames.value[index];
+		if (!item.id || isFavoritePending(item.id)) return;
+
+		favoritePendingIds.value = [...favoritePendingIds.value, item.id];
 		item.isFavorite = !item.isFavorite;
-		if (item.isFavorite) {
-			// 添加收藏
-			addFavorite({
-				id: item.id,
-				name: item.name,
-				meaning: item.meaning,
-				style: item.style,
-				gender: currentGenderLabel.value,
-				source: item.source || apiMeta.value.apiName,
-			}).catch(() => {
-				uni.showToast({ title: '收藏失败', icon: 'none' });
-				item.isFavorite = false;
-			});
-		} else {
-			// 取消收藏
-			deleteFavorites(item.id).catch(() => {
-				uni.showToast({ title: '取消失败', icon: 'none' });
-				item.isFavorite = true;
-			});
+		try {
+			if (item.isFavorite) {
+				await addFavorite({
+					id: item.id,
+					name: item.name,
+					meaning: item.meaning,
+					style: item.style,
+					gender: currentGenderLabel.value,
+					source: item.source || apiMeta.value.apiName,
+				});
+			} else {
+				await deleteFavorites(item.id);
+			}
+		} catch (error: any) {
+			const message =
+				typeof error?.message === 'string' && error.message.includes('401')
+					? '登录状态已失效，请重新登录'
+					: item.isFavorite
+						? '收藏失败'
+						: '取消失败';
+			uni.showToast({ title: message, icon: 'none' });
+			if (message.includes('重新登录')) {
+				uni.navigateTo({
+					url: '/pages/Auth/Auth',
+				});
+			}
+			item.isFavorite = !item.isFavorite;
+		} finally {
+			favoritePendingIds.value = favoritePendingIds.value.filter((pendingId) => pendingId !== item.id);
 		}
 	};
 
@@ -604,18 +743,7 @@
 		flex-direction: column;
 		height: 100%;
 		width: 100%;
-		background-color: #f0f0f0;
-	}
-
-	.nav-bar {
-		height: 44px;
-		background-color: #ffffff;
-		border-bottom: 1px solid #eee;
-		padding: 0 10px;
-		box-shadow: 0 1px 5px rgba(0, 0, 0, 0.05);
-		display: flex;
-		align-items: center;
-		justify-content: space-between;
+		background-color: var(--page-bg);
 	}
 
 	.health-bar {
@@ -623,8 +751,8 @@
 		align-items: center;
 		justify-content: space-between;
 		padding: 5px 10px;
-		background-color: #fff;
-		border-bottom: 1px solid #eee;
+		background-color: var(--surface);
+		border-bottom: 1px solid var(--border-color);
 	}
 
 	.health-info {
@@ -637,23 +765,23 @@
 		height: 8px;
 		border-radius: 50%;
 		margin-right: 6px;
-		background-color: #ccc;
+		background-color: var(--disabled-bg);
 	}
 	.dot.ok {
-		background-color: #2ecc71;
+		background-color: var(--success);
 	}
 	.dot.bad {
-		background-color: #e74c3c;
+		background-color: var(--danger);
 	}
 
 	.health-text {
 		font-size: 13px;
-		color: #333;
+		color: var(--text-primary);
 		margin-right: 5px;
 	}
 	.health-sub {
 		font-size: 11px;
-		color: #999;
+		color: var(--text-secondary);
 	}
 
 	.refresh-btn {
@@ -668,8 +796,8 @@
 
 	.options-panel {
 		padding: 10px;
-		background-color: #ffffff;
-		border-bottom: 1px solid #eee;
+		background-color: var(--surface);
+		border-bottom: 1px solid var(--border-color);
 		display: flex;
 		flex-direction: column;
 		gap: 8px;
@@ -686,7 +814,7 @@
 	}
 
 	.option-item {
-		background-color: #f6f6f6;
+		background-color: var(--surface-muted);
 		border-radius: 6px;
 		padding: 10px 12px;
 		display: flex;
@@ -700,43 +828,35 @@
 
 	.option-label {
 		font-size: 12px;
-		color: #888;
+		color: var(--text-secondary);
 		margin-bottom: 4px;
 	}
 
 	.option-value {
 		font-size: 14px;
-		color: #333;
+		color: var(--text-primary);
 		overflow: hidden;
 		text-overflow: ellipsis;
 		white-space: nowrap;
 	}
 
 	.option-item.readonly {
-		background-color: #fff8e6;
+		background-color: var(--warning-soft);
+		border: 1px solid var(--warning-border);
 	}
 
 	.option-item.disabled {
 		opacity: 0.5;
-		background-color: #e0e0e0;
+		background-color: var(--disabled-bg);
 	}
 
 	.option-value.base-url {
 		font-size: 11px;
-		color: #ad8b00;
+		color: var(--warning);
 		word-break: break-all;
 		white-space: normal;
 	}
 
-	.page-title {
-		flex: 1;
-		font-size: 16px;
-		font-weight: bold;
-		color: #333;
-		text-align: center;
-	}
-
-	.back-btn,
 	.batch-btn {
 		width: 30px;
 		height: 30px;
@@ -780,12 +900,16 @@
 		width: 30px;
 		height: 30px;
 		border-radius: 50%;
-		background-color: #4a90e2;
+		background-color: var(--accent);
 		display: flex;
 		align-items: center;
 		justify-content: center;
 		margin-right: 10px;
 		flex-shrink: 0;
+	}
+
+	.error-avatar {
+		background-color: var(--warning);
 	}
 
 	.message-content {
@@ -794,30 +918,36 @@
 	}
 
 	.message-bubble {
-		background-color: #fff;
+		background-color: var(--surface);
 		border-radius: 8px;
 		padding: 12px;
 		margin-bottom: 10px;
-		box-shadow: 0 2px 6px rgba(0, 0, 0, 0.03);
+		box-shadow: var(--shadow-soft);
 		word-wrap: break-word;
 	}
 
 	.system-message .message-bubble {
-		background-color: #e0e0e0;
+		background-color: var(--surface-muted);
 	}
 
 	.user-message .message-bubble {
-		background-color: #4a90e2;
-		color: #fff;
+		background-color: var(--accent);
+		color: var(--accent-contrast);
 	}
 
 	.ai-message .message-bubble {
-		background-color: #fff;
+		background-color: var(--surface);
+	}
+
+	.error-bubble {
+		background-color: var(--warning-soft);
+		border: 1px solid var(--warning-border);
 	}
 
 	.message-text {
 		font-size: 14px;
 		line-height: 20px;
+		color: inherit;
 	}
 
 	.name-suggestions {
@@ -825,7 +955,7 @@
 	}
 
 	.suggestion-card {
-		background-color: #f8f8f8;
+		background-color: var(--surface-soft);
 		border-radius: 8px;
 		padding: 12px;
 		margin-bottom: 10px;
@@ -843,7 +973,7 @@
 	.name-text {
 		font-size: 16px;
 		font-weight: bold;
-		color: #333;
+		color: var(--text-primary);
 	}
 
 	.actions {
@@ -861,9 +991,13 @@
 		padding: 0;
 	}
 
+	.action-btn.pending {
+		opacity: 0.6;
+	}
+
 	.meaning-text {
 		font-size: 13px;
-		color: #666;
+		color: var(--text-secondary);
 		line-height: 20px;
 		margin-bottom: 8px;
 	}
@@ -876,8 +1010,8 @@
 
 	.tag {
 		font-size: 11px;
-		color: #4a90e2;
-		background-color: #eaf4ff;
+		color: var(--accent);
+		background-color: var(--accent-soft);
 		padding: 3px 8px;
 		border-radius: 4px;
 	}
@@ -891,8 +1025,8 @@
 
 	.feature-pill {
 		font-size: 11px;
-		color: #666;
-		background-color: #f0f0f0;
+		color: var(--text-secondary);
+		background-color: var(--surface-muted);
 		padding: 3px 7px;
 		border-radius: 8px;
 	}
@@ -902,7 +1036,7 @@
 		display: flex;
 		flex-direction: column;
 		font-size: 12px;
-		color: #666;
+		color: var(--text-secondary);
 	}
 
 	.empty-state {
@@ -911,7 +1045,7 @@
 		align-items: center;
 		justify-content: center;
 		padding: 40px 10px;
-		color: #999;
+		color: var(--text-secondary);
 	}
 
 	.empty-text {
@@ -924,14 +1058,15 @@
 		display: flex;
 		align-items: flex-end;
 		padding: 12px;
-		background-color: #fff;
-		border-top: 1px solid #eee;
+		padding-bottom: calc(12px + env(safe-area-inset-bottom));
+		background-color: var(--surface);
+		border-top: 1px solid var(--border-color);
 		box-sizing: border-box;
 	}
 
 	.input-container {
 		flex: 1;
-		background-color: #f0f0f0;
+		background-color: var(--surface-muted);
 		border-radius: 8px;
 		padding: 10px;
 		margin-right: 10px;
@@ -944,7 +1079,7 @@
 		max-height: 100px;
 		font-size: 14px;
 		line-height: 20px;
-		color: #333;
+		color: var(--text-primary);
 		padding: 5px 0;
 		box-sizing: border-box;
 	}
@@ -952,15 +1087,15 @@
 	.char-count {
 		text-align: right;
 		font-size: 10px;
-		color: #999;
+		color: var(--text-secondary);
 		margin-top: 5px;
 	}
 
 	.send-btn {
 		width: 40px;
 		height: 40px;
-		background-color: #4a90e2;
-		color: #fff;
+		background-color: var(--accent);
+		color: var(--accent-contrast);
 		border-radius: 50%;
 		border: none;
 		display: flex;
@@ -969,6 +1104,7 @@
 	}
 
 	.send-btn[disabled] {
-		background-color: #ccc;
+		background-color: var(--disabled-bg);
+		color: var(--disabled-text);
 	}
 </style>

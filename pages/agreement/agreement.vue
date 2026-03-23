@@ -1,17 +1,11 @@
 <template>
     <view class="page-container" :style="themeVars">
-        <CustomNavBar
-            title="后台管理"
-            fallback-url="/pages/Index/Index"
-            fallback-mode="reLaunch"
-        />
+        <CustomNavBar :title="pageTitle" />
 
         <view class="content-card">
-            <text class="section-title">后台管理入口已预留</text>
-            <text class="section-text">
-                当前版本仅提供管理员入口页，用于确认账号权限和后续扩展管理功能。完整管理面板仍在建设中。
-            </text>
-            <text class="status-tag">当前状态：最小可用占位页</text>
+            <text class="section-title">{{ heading }}</text>
+            <text class="section-text">{{ content }}</text>
+            <text class="section-tip">如需进一步说明，可在“反馈与帮助”页面联系我们。</text>
         </view>
     </view>
 </template>
@@ -19,7 +13,6 @@
 <script lang="ts" setup>
 import { computed, onMounted, onUnmounted, ref } from "vue";
 import { onLoad, onShow } from "@dcloudio/uni-app";
-import { getAuthUser } from "../../common/api";
 import {
     createThemeCssVars,
     getRuntimeThemePalette,
@@ -27,6 +20,7 @@ import {
 } from "../../common/theme";
 import CustomNavBar from "../../components/CustomNavBar.vue";
 
+const type = ref("user");
 const themePalette = ref<ThemePalette>(getRuntimeThemePalette());
 const themeVars = computed(() => createThemeCssVars(themePalette.value));
 
@@ -34,23 +28,22 @@ const syncTheme = () => {
     themePalette.value = getRuntimeThemePalette();
 };
 
-onLoad(() => {
+const pageTitle = computed(() =>
+    type.value === "privacy" ? "隐私政策" : "用户协议",
+);
+const heading = computed(() =>
+    type.value === "privacy" ? "隐私保护说明" : "用户使用说明",
+);
+const content = computed(() =>
+    type.value === "privacy"
+        ? "我们当前仅在提供登录、收藏、历史记录和接口偏好设置等功能时保存必要数据。数据仅用于支撑功能本身，不会在未告知的情况下用于其他目的。"
+        : "本应用用于智能姓名生成与结果管理，请在合法合规场景下使用。登录、收藏、历史记录等功能会结合后端服务提供，请勿输入敏感或违法内容。",
+);
+
+onLoad((options) => {
     syncTheme();
-    const user = getAuthUser();
-    if (user?.role === "admin") {
-        return;
-    }
-
-    uni.showToast({
-        title: "仅管理员可访问",
-        icon: "none",
-    });
-
-    setTimeout(() => {
-        uni.reLaunch({
-            url: "/pages/Index/Index",
-        });
-    }, 300);
+    const pageType = typeof options?.type === "string" ? options.type : "user";
+    type.value = pageType === "privacy" ? "privacy" : "user";
 });
 
 onShow(() => {
@@ -98,14 +91,14 @@ page {
 }
 
 .section-text,
-.status-tag {
+.section-tip {
     display: block;
     font-size: 28rpx;
     line-height: 1.8;
     color: var(--text-secondary);
 }
 
-.status-tag {
+.section-tip {
     margin-top: 24rpx;
     color: var(--accent);
 }

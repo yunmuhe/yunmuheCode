@@ -46,6 +46,25 @@
 				"navigationBarTitleText": "",
 				"navigationStyle": "custom"
 			}
+		},
+		{
+			"path": "pages/Admin/Admin",
+			"style": {
+				"navigationBarTitleText": "后台管理",
+				"navigationStyle": "custom"
+			}
+		},
+		{
+			"path": "pages/agreement/agreement",
+			"style": {
+				"navigationBarTitleText": "协议与政策"
+			}
+		},
+		{
+			"path": "pages/feedback/feedback",
+			"style": {
+				"navigationBarTitleText": "反馈与帮助"
+			}
 		}
 	],
 	"globalStyle": {

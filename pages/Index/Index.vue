@@ -1,29 +1,25 @@
 <template>
 	<view class="container">
 		<view class="header">
-			<image class="logo" src="https://ai-public.mastergo.com/ai/img_res/2d3ed915be78aa2c71847331419318e5.jpg" />
+			<image class="logo" src="/static/home/logo.jpg" />
 			<text class="title">智能姓名生成器</text>
 			<text class="subtitle">AI驱动的个性化姓名创作工具</text>
 		</view>
 		<view class="grid-container">
 			<view class="grid-item" @click="navigateTo('generate')">
-				<image class="icon"
-					src="https://ai-public.mastergo.com/ai/img_res/3489a834b81cae92568a6e392af265a9.jpg" />
+				<image class="icon" src="/static/home/generate.jpg" />
 				<text class="label">开始生成</text>
 			</view>
 			<view class="grid-item" @click="navigateTo('history')">
-				<image class="icon"
-					src="https://ai-public.mastergo.com/ai/img_res/c70c8d36a5d2324a72a274226c912d67.jpg" />
+				<image class="icon" src="/static/home/history.jpg" />
 				<text class="label">生成历史</text>
 			</view>
 			<view class="grid-item" @click="navigateTo('favorites')">
-				<image class="icon"
-					src="https://ai-public.mastergo.com/ai/img_res/994c6b548030f3f9e102d49139840ca1.jpg" />
+				<image class="icon" src="/static/home/favorites.jpg" />
 				<text class="label">我的收藏</text>
 			</view>
 			<view class="grid-item" @click="navigateTo('settings')">
-				<image class="icon"
-					src="https://ai-public.mastergo.com/ai/img_res/74d7216e8525f9d4e0dc2597a5ea728c.jpg" />
+				<image class="icon" src="/static/home/settings.jpg" />
 				<text class="label">系统设置</text>
 			</view>
 		</view>
@@ -52,15 +48,18 @@
 	</view>
 </template>
 <script lang="ts" setup>
-import { ref, onMounted } from 'vue';
-import { getHistoryList, getFavorites } from '../../common/api';
+import { ref } from 'vue';
+import { onShow } from '@dcloudio/uni-app';
+import { getAuthUser, fetchBackendStats, getHistoryList, getFavorites } from '../../common/api';
 
-const isLoggedIn = ref(true);
+const isLoggedIn = ref(false);
 const stats = ref({
     generated: 0,
     favorites: 0,
     today: 0,
 });
+const isLoadingStats = ref(false);
+let latestStatsRequestId = 0;
 const examples = ref([
     { text: "古代文人雅士", category: "ancient" },
     { text: "奇幻世界魔法师", category: "fantasy" },
@@ -69,45 +68,75 @@ const examples = ref([
     { text: "武侠江湖侠客", category: "martial" },
 ]);
 
-// 加载统计数据
-const loadStats = async () => {
-	try {
-		// 获取历史记录总数
-		const historyRes = await getHistoryList({ page: 1, page_size: 1 });
-		if (historyRes.success) {
-			stats.value.generated = historyRes.total || 0;
-
-            // 计算今日生成数量
-            const today = new Date();
-            today.setHours(0, 0, 0, 0);
-            const todayTimestamp = today.getTime();
-
-            // 获取所有历史记录来计算今日数量
-            const allHistoryRes = await getHistoryList({
-                page: 1,
-                page_size: 100,
-            });
-            if (allHistoryRes.success && allHistoryRes.items) {
-                const todayCount = allHistoryRes.items.filter((item: any) => {
-                    const itemTime = new Date(item.time).getTime();
-                    return itemTime >= todayTimestamp;
-                }).length;
-                stats.value.today = todayCount;
-            }
-        }
-
-        // 获取收藏数量
-        const favoritesRes = await getFavorites();
-        if (favoritesRes.success) {
-            stats.value.favorites = favoritesRes.items?.length || 0;
-        }
-    } catch (error) {
-        console.error("加载统计数据失败:", error);
-        // 失败时保持默认值0
-    }
+const resetStats = () => {
+    stats.value = {
+        generated: 0,
+        favorites: 0,
+        today: 0,
+    };
 };
 
-onMounted(() => {
+const syncLoginState = () => {
+    const user = getAuthUser();
+    isLoggedIn.value = Boolean(user && user.phone);
+};
+
+// 加载统计数据
+const loadStats = async () => {
+	syncLoginState();
+	if (!isLoggedIn.value) {
+		resetStats();
+		return;
+	}
+
+	if (isLoadingStats.value) {
+		return;
+	}
+
+	isLoadingStats.value = true;
+	const requestId = ++latestStatsRequestId;
+	const nextStats = {
+		generated: 0,
+		favorites: 0,
+		today: 0,
+	};
+
+	try {
+		const [statsResult, historyResult, favoritesResult] = await Promise.allSettled([
+			fetchBackendStats(),
+			getHistoryList({ page: 1, page_size: 1 }),
+			getFavorites(),
+		]);
+
+		if (statsResult.status === 'fulfilled' && statsResult.value.success) {
+			nextStats.today = Number(statsResult.value.stats?.today_generated || 0);
+		} else if (statsResult.status === 'rejected') {
+			console.error('加载系统统计失败:', statsResult.reason);
+		}
+
+		if (historyResult.status === 'fulfilled' && historyResult.value.success) {
+			nextStats.generated = historyResult.value.total || 0;
+		} else if (historyResult.status === 'rejected') {
+			console.error('加载历史统计失败:', historyResult.reason);
+		}
+
+		if (favoritesResult.status === 'fulfilled' && favoritesResult.value.success) {
+			nextStats.favorites = favoritesResult.value.items?.length || 0;
+		} else if (favoritesResult.status === 'rejected') {
+			console.error('加载收藏统计失败:', favoritesResult.reason);
+		}
+
+		if (requestId === latestStatsRequestId) {
+			stats.value = nextStats;
+		}
+	} finally {
+		if (requestId === latestStatsRequestId) {
+			isLoadingStats.value = false;
+		}
+	}
+};
+
+onShow(() => {
 	loadStats();
 });
 
@@ -134,6 +163,7 @@ const fillExample = (example: { text: string }) => {
 page {
     height: 100%;
 }
+
 
 .container {
     display: flex;

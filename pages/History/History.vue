@@ -1,37 +1,35 @@
 <template>
-	<view class="history-page">
-		<view class="nav-bar">
-			<button class="back-btn" @click="goBack">
-				<uni-icons type="arrowleft" size="24" color="#333"></uni-icons>
-			</button>
-			<text class="page-title">历史记录</text>
-			<view class="placeholder"></view>
-		</view>
+	<view class="history-page" :style="themeVars">
+		<CustomNavBar title="历史记录" />
 
 		<view class="filter-bar">
 			<view class="search-box">
-				<uni-icons type="search" size="20" color="#999"></uni-icons>
+				<uni-icons type="search" size="20" :color="themePalette.textSecondary"></uni-icons>
 				<input
 					class="search-input"
 					placeholder="搜索描述内容"
-					placeholder-style="color:#999;font-size:14px"
-					v-model="searchText"
+					:placeholder-style="`color:${themePalette.textSecondary};font-size:14px`"
+					v-model="draftSearchText"
 					@confirm="handleSearch"
 				/>
+				<text v-if="draftSearchText" class="search-action" @click="handleSearch">搜索</text>
 			</view>
 			<view class="filter-options">
 				<picker mode="selector" :range="timeRange" range-key="label" @change="handleTimeChange">
 					<view class="filter-item">
 						<text>{{ timeRange[timeIndex].label }}</text>
-						<uni-icons type="arrowdown" size="14" color="#666"></uni-icons>
+						<uni-icons type="arrowdown" size="14" :color="themePalette.textSecondary"></uni-icons>
 					</view>
 				</picker>
 				<picker mode="selector" :range="sortRange" range-key="label" @change="handleSortChange">
 					<view class="filter-item">
 						<text>{{ sortRange[sortIndex].label }}</text>
-						<uni-icons type="arrowdown" size="14" color="#666"></uni-icons>
+						<uni-icons type="arrowdown" size="14" :color="themePalette.textSecondary"></uni-icons>
 					</view>
 				</picker>
+				<view v-if="hasActiveFilters" class="filter-reset" @click="resetFilters">
+					重置筛选
+				</view>
 			</view>
 		</view>
 
@@ -42,13 +40,13 @@
 			:style="{ height: scrollHeight + 'px' }"
 		>
 			<view class="empty-state" v-if="historyList.length === 0">
-				<image
-					class="empty-image"
-					src="https://ai-public.mastergo.com/ai/img_res/adc2c67b429ff3c75b0aad8484dc1139.jpg"
-					mode="aspectFit"
-				/>
+				<image class="empty-image" src="/static/common/history-empty.svg" mode="aspectFit" />
 				<view class="empty-text">暂无历史记录，快去生成页创造属于你的名字吧！</view>
 				<button class="empty-btn" type="primary" @click="goToGenerate">去生成名字</button>
+			</view>
+			<view class="empty-state" v-else-if="filteredHistoryList.length === 0">
+				<view class="empty-text">当前筛选条件下暂无历史记录，试试调整搜索词或时间范围。</view>
+				<button class="empty-btn secondary" @click="resetFilters">重置筛选</button>
 			</view>
 
 			<template v-for="(group, index) in groupedList" :key="index">
@@ -68,7 +66,7 @@
 							<uni-icons
 								:type="item.expanded ? 'arrowup' : 'arrowdown'"
 								size="16"
-								color="#999"
+								:color="themePalette.textSecondary"
 							></uni-icons>
 						</view>
 
@@ -81,7 +79,7 @@
 				</view>
 			</template>
 
-			<view class="load-more" v-if="historyList.length > 0 && !noMore">
+			<view class="load-more" v-if="filteredHistoryList.length > 0 && !noMore">
 				<text>{{ loading ? '加载中...' : '上拉加载更多' }}</text>
 			</view>
 		</scroll-view>
@@ -89,9 +87,11 @@
 </template>
 
 <script lang="ts" setup>
-	import { computed, ref } from 'vue';
-	import { onLoad } from '@dcloudio/uni-app';
+	import { computed, onMounted, onUnmounted, ref } from 'vue';
+	import { onLoad, onShow } from '@dcloudio/uni-app';
 	import { getHistoryList } from '../../common/api';
+	import { createThemeCssVars, getRuntimeThemePalette, type ThemePalette } from '../../common/theme';
+	import CustomNavBar from '../../components/CustomNavBar.vue';
 	import uniIcons from '@/uni_modules/uni-icons/components/uni-icons/uni-icons.vue';
 
 	const timeRange = ref([
@@ -105,15 +105,56 @@
 		{ label: '按数量', value: 'count' }
 	]);
 
-	const timeIndex = ref(0);
+	const defaultTimeIndex = 0;
+	const timeIndex = ref(defaultTimeIndex);
 	const sortIndex = ref(0);
-	const searchText = ref('');
+	const draftSearchText = ref('');
+	const submittedSearchText = ref('');
 	const historyList = ref<any[]>([]);
 	const loading = ref(false);
 	const noMore = ref(false);
 	const page = ref(1);
 	const pageSize = ref(10);
 	const scrollHeight = ref(0);
+	const themePalette = ref<ThemePalette>(getRuntimeThemePalette());
+	const themeVars = computed(() => createThemeCssVars(themePalette.value));
+
+	const syncTheme = () => {
+		themePalette.value = getRuntimeThemePalette();
+	};
+
+	const filteredHistoryList = computed(() => {
+		const keyword = submittedSearchText.value.trim().toLowerCase();
+		const days = timeRange.value[timeIndex.value]?.value ?? 0;
+		const now = Date.now();
+
+		const filtered = historyList.value.filter((item) => {
+			const matchKeyword =
+				!keyword ||
+				String(item.description || '').toLowerCase().includes(keyword) ||
+				(item.names || []).some((name: string) => String(name).toLowerCase().includes(keyword));
+			if (!matchKeyword) {
+				return false;
+			}
+
+			if (!days) {
+				return true;
+			}
+
+			const diff = now - Number(item.time);
+			return diff >= 0 && diff <= days * 24 * 60 * 60 * 1000;
+		});
+
+		return filtered.slice().sort((a, b) => {
+			if (sortRange.value[sortIndex.value]?.value === 'count') {
+				if (b.count === a.count) {
+					return b.time - a.time;
+				}
+				return b.count - a.count;
+			}
+			return b.time - a.time;
+		});
+	});
 
 	const groupedList = computed(() => {
 		const today = new Date();
@@ -128,7 +169,7 @@
 			{ title: '更早', items: [] as any[] }
 		];
 
-		historyList.value.forEach((item) => {
+		filteredHistoryList.value.forEach((item) => {
 			const itemDate = new Date(item.time);
 			if (itemDate >= today) {
 				groups[0].items.push(item);
@@ -142,9 +183,35 @@
 		return groups;
 	});
 
+	const hasActiveFilters = computed(() => {
+		return (
+			draftSearchText.value.trim().length > 0 ||
+			submittedSearchText.value.trim().length > 0 ||
+			timeIndex.value !== defaultTimeIndex ||
+			sortIndex.value !== 0
+		);
+	});
+
 	onLoad(() => {
+		syncTheme();
 		getSystemInfo();
 		fetchHistory();
+	});
+
+	onShow(() => {
+		syncTheme();
+	});
+
+	onMounted(() => {
+		if (typeof uni.$on === 'function') {
+			uni.$on('theme-changed', syncTheme);
+		}
+	});
+
+	onUnmounted(() => {
+		if (typeof uni.$off === 'function') {
+			uni.$off('theme-changed', syncTheme);
+		}
 	});
 
 	const getSystemInfo = () => {
@@ -172,7 +239,7 @@
 			const res = await getHistoryList({
 				page: page.value,
 				page_size: pageSize.value,
-				q: searchText.value.trim(),
+				q: submittedSearchText.value.trim(),
 			});
 			if (res.success) {
 				const items = (res.items || []).map((it: any) => ({
@@ -196,20 +263,25 @@
 	};
 
 	const handleSearch = () => {
+		submittedSearchText.value = draftSearchText.value.trim();
 		page.value = 1;
 		noMore.value = false;
 		fetchHistory();
 	};
 
 	const handleTimeChange = (e: any) => {
-		timeIndex.value = e.detail.value;
-		page.value = 1;
-		noMore.value = false;
-		fetchHistory();
+		timeIndex.value = Number(e.detail.value) || 0;
 	};
 
 	const handleSortChange = (e: any) => {
-		sortIndex.value = e.detail.value;
+		sortIndex.value = Number(e.detail.value) || 0;
+	};
+
+	const resetFilters = () => {
+		draftSearchText.value = '';
+		submittedSearchText.value = '';
+		timeIndex.value = defaultTimeIndex;
+		sortIndex.value = 0;
 		page.value = 1;
 		noMore.value = false;
 		fetchHistory();
@@ -238,67 +310,30 @@
 		});
 	};
 
-	const goBack = () => {
-		uni.navigateBack();
-	};
 </script>
 
 <style>
 	page {
 		height: 100%;
-		background-color: #f5f5f5;
 	}
 
 	.history-page {
 		display: flex;
 		flex-direction: column;
 		height: 100%;
-	}
-
-	.nav-bar {
-		height: 44px;
-		background-color: #ffffff;
-		border-bottom: 1px solid #eee;
-		display: flex;
-		align-items: center;
-		justify-content: space-between;
-		padding: 0 10px;
-		flex-shrink: 0;
-	}
-
-	.back-btn {
-		width: 30px;
-		height: 30px;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		border: none;
-		background: none;
-		padding: 0;
-	}
-
-	.page-title {
-		flex: 1;
-		font-size: 16px;
-		font-weight: bold;
-		color: #333;
-		text-align: center;
-	}
-
-	.placeholder {
-		width: 30px;
+		background-color: var(--page-bg);
 	}
 
 	.filter-bar {
-		background-color: #fff;
+		background-color: var(--surface);
 		padding: 20rpx 30rpx;
-		box-shadow: 0 2rpx 10rpx rgba(0, 0, 0, 0.05);
+		box-shadow: var(--shadow-soft);
 	}
 
 	.search-box {
 		display: flex;
 		align-items: center;
-		background-color: #f5f5f5;
+		background-color: var(--surface-muted);
 		border-radius: 40rpx;
 		padding: 10rpx 20rpx;
 		margin-bottom: 20rpx;
@@ -311,18 +346,35 @@
 		margin-left: 10rpx;
 	}
 
+	.search-action {
+		margin-left: 16rpx;
+		font-size: 24rpx;
+		color: var(--accent);
+	}
+
 	.filter-options {
 		display: flex;
 		justify-content: space-between;
+		align-items: center;
+		gap: 12rpx;
+		flex-wrap: wrap;
 	}
 
 	.filter-item {
 		display: flex;
 		align-items: center;
 		font-size: 26rpx;
-		color: #666;
+		color: var(--text-secondary);
 		padding: 10rpx 20rpx;
-		background-color: #f5f5f5;
+		background-color: var(--surface-muted);
+		border-radius: 30rpx;
+	}
+
+	.filter-reset {
+		padding: 10rpx 20rpx;
+		font-size: 24rpx;
+		color: var(--accent);
+		background-color: var(--accent-soft);
 		border-radius: 30rpx;
 	}
 
@@ -340,7 +392,7 @@
 	.group-title {
 		display: block;
 		font-size: 26rpx;
-		color: #999;
+		color: var(--text-secondary);
 		margin: 30rpx 0 20rpx;
 	}
 
@@ -348,11 +400,11 @@
 		display: flex;
 		align-items: center;
 		justify-content: space-between;
-		background-color: #fff;
+		background-color: var(--surface);
 		border-radius: 16rpx;
 		padding: 30rpx;
 		margin-bottom: 20rpx;
-		box-shadow: 0 2rpx 10rpx rgba(0, 0, 0, 0.05);
+		box-shadow: var(--shadow-soft);
 	}
 
 	.item-content {
@@ -366,7 +418,7 @@
 		-webkit-box-orient: vertical;
 		overflow: hidden;
 		font-size: 28rpx;
-		color: #333;
+		color: var(--text-primary);
 		margin-bottom: 10rpx;
 	}
 
@@ -377,7 +429,7 @@
 	.item-meta {
 		display: flex;
 		font-size: 24rpx;
-		color: #999;
+		color: var(--text-secondary);
 	}
 
 	.item-time {
@@ -385,19 +437,19 @@
 	}
 
 	.expanded-content {
-		background-color: #fff;
+		background-color: var(--surface);
 		border-radius: 0 0 16rpx 16rpx;
 		padding: 20rpx 30rpx;
 		margin-top: -20rpx;
 		margin-bottom: 20rpx;
-		box-shadow: 0 2rpx 10rpx rgba(0, 0, 0, 0.05);
+		box-shadow: var(--shadow-soft);
 	}
 
 	.name-item {
 		padding: 15rpx 0;
 		font-size: 28rpx;
-		color: #666;
-		border-bottom: 1rpx solid #f5f5f5;
+		color: var(--text-secondary);
+		border-bottom: 1rpx solid var(--border-color);
 	}
 
 	.name-item:last-child {
@@ -420,7 +472,7 @@
 
 	.empty-text {
 		font-size: 28rpx;
-		color: #999;
+		color: var(--text-secondary);
 		margin-bottom: 32rpx;
 		text-align: center;
 		padding: 0 40rpx;
@@ -432,17 +484,22 @@
 		height: 80rpx;
 		line-height: 80rpx;
 		font-size: 32rpx;
-		color: white;
-		background-color: #4a90e2;
+		color: var(--accent-contrast);
+		background-color: var(--accent);
 		border-radius: 40rpx;
 		border: none;
 		margin: 0;
 	}
 
+	.empty-btn.secondary {
+		background-color: var(--accent-soft);
+		color: var(--accent);
+	}
+
 	.load-more {
 		text-align: center;
 		font-size: 26rpx;
-		color: #999;
+		color: var(--text-secondary);
 		padding: 30rpx 0;
 	}
 </style>

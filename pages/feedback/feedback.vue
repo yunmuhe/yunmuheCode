@@ -1,17 +1,18 @@
 <template>
     <view class="page-container" :style="themeVars">
-        <CustomNavBar
-            title="后台管理"
-            fallback-url="/pages/Index/Index"
-            fallback-mode="reLaunch"
-        />
+        <CustomNavBar title="反馈与帮助" />
 
         <view class="content-card">
-            <text class="section-title">后台管理入口已预留</text>
+            <text class="section-title">我们正在完善反馈入口</text>
             <text class="section-text">
-                当前版本仅提供管理员入口页，用于确认账号权限和后续扩展管理功能。完整管理面板仍在建设中。
+                当前版本暂未接入在线工单系统。你可以先整理遇到的问题、操作步骤和期望结果，后续会接入正式反馈通道。
             </text>
-            <text class="status-tag">当前状态：最小可用占位页</text>
+
+            <view class="tips-list">
+                <text class="tip-item">1. 记录页面名称和操作步骤</text>
+                <text class="tip-item">2. 标注是否与登录、收藏、历史记录有关</text>
+                <text class="tip-item">3. 如能复现，补充复现频率与时间</text>
+            </view>
         </view>
     </view>
 </template>
@@ -19,7 +20,6 @@
 <script lang="ts" setup>
 import { computed, onMounted, onUnmounted, ref } from "vue";
 import { onLoad, onShow } from "@dcloudio/uni-app";
-import { getAuthUser } from "../../common/api";
 import {
     createThemeCssVars,
     getRuntimeThemePalette,
@@ -36,21 +36,6 @@ const syncTheme = () => {
 
 onLoad(() => {
     syncTheme();
-    const user = getAuthUser();
-    if (user?.role === "admin") {
-        return;
-    }
-
-    uni.showToast({
-        title: "仅管理员可访问",
-        icon: "none",
-    });
-
-    setTimeout(() => {
-        uni.reLaunch({
-            url: "/pages/Index/Index",
-        });
-    }, 300);
 });
 
 onShow(() => {
@@ -98,15 +83,21 @@ page {
 }
 
 .section-text,
-.status-tag {
+.tip-item {
     display: block;
     font-size: 28rpx;
     line-height: 1.8;
     color: var(--text-secondary);
 }
 
-.status-tag {
+.tips-list {
     margin-top: 24rpx;
-    color: var(--accent);
+    padding: 20rpx 24rpx;
+    border-radius: 12rpx;
+    background-color: var(--accent-soft);
+}
+
+.tip-item + .tip-item {
+    margin-top: 8rpx;
 }
 </style>

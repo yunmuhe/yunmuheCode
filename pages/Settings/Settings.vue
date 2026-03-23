@@ -1,27 +1,21 @@
 <template>
-    <view class="settings-container">
+    <view class="settings-container" :style="themeVars">
         <!-- 顶部导航栏-->
-        <view class="nav-bar">
-            <button class="back-btn" @click="handleBack">
-                <uni-icons type="arrowleft" size="24" color="#333"></uni-icons>
-            </button>
-            <text class="page-title">设置</text>
-            <view class="placeholder"></view>
-        </view>
+        <CustomNavBar title="设置" />
 
         <!-- 用户信息区域 -->
         <view class="user-section">
             <view class="user-avatar" @click="handleUserClick">
                 <image
-                    v-if="isLogin"
+                        v-if="isLogin"
                     class="avatar-image"
                     :src="
                         userInfo.avatar ||
-                        'https://ai-public.mastergo.com/ai/img_res/ab95285ae27e91c77528f5798b063ad2.jpg'
+                        '/static/common/default-avatar.svg'
                     "
                     mode="aspectFill"
                 />
-                <uni-icons v-else type="contact" size="60" color="#999" />
+                <uni-icons v-else type="contact" size="60" :color="themePalette.textSecondary" />
             </view>
             <view class="user-info">
                 <text v-if="isLogin" class="user-name">{{
@@ -53,7 +47,7 @@
                             width: '14rpx',
                             height: '14rpx',
                             borderRadius: '50%',
-                            backgroundColor: health.ok ? '#2ecc71' : '#e74c3c',
+                            backgroundColor: health.ok ? themePalette.success : themePalette.danger,
                             marginRight: '12rpx',
                         }"
                     ></view>
@@ -62,7 +56,7 @@
                     }}</text>
                     <text
                         v-if="health.version"
-                        style="margin-left: 12rpx; color: #999"
+                        :style="{ marginLeft: '12rpx', color: themePalette.textSecondary }"
                         >v{{ health.version }}</text
                     >
                     <button
@@ -87,6 +81,7 @@
                     v-model="settings.generateCount"
                     :min="1"
                     :max="10"
+                    @change="handleGenerateCountChange"
                 />
             </view>
             <view class="settings-item" v-if="apiOptions.length">
@@ -115,7 +110,7 @@
                 <switch
                     :checked="settings.autoCopy"
                     @change="handleAutoCopyChange"
-                    color="#4a90e2"
+                    :color="themePalette.accent"
                 />
             </view>
         </view>
@@ -147,7 +142,7 @@
                     :max="2"
                     @change="handleFontSizeChange"
                     :step="1"
-                    activeColor="#4a90e2"
+                    :activeColor="themePalette.accent"
                 />
                 <view class="slider-labels">
                     <text>小</text>
@@ -160,7 +155,7 @@
                 <switch
                     :checked="settings.animation"
                     @change="handleAnimationChange"
-                    color="#4a90e2"
+                    :color="themePalette.accent"
                 />
             </view>
         </view>
@@ -178,7 +173,7 @@
                 >
                     <view class="picker-value">
                         {{ retentionTimes[retentionIndex] }}
-                        <uni-icons type="arrowright" size="16" color="#999" />
+                        <uni-icons type="arrowright" size="16" :color="themePalette.textSecondary" />
                     </view>
                 </picker>
             </view>
@@ -187,7 +182,7 @@
                 <switch
                     :checked="settings.autoClean"
                     @change="handleAutoCleanChange"
-                    color="#4a90e2"
+                    :color="themePalette.accent"
                 />
             </view>
             <view class="settings-item">
@@ -241,7 +236,7 @@
                 <switch
                     :checked="settings.cloudSync"
                     @change="handleCloudSyncChange"
-                    color="#4a90e2"
+                    :color="themePalette.accent"
                 />
             </view>
             <view class="settings-item">
@@ -277,26 +272,26 @@
             </view>
             <view class="settings-item" @click="handleUserAgreement">
                 <text class="item-label">用户协议</text>
-                <uni-icons type="arrowright" size="16" color="#999" />
+                <uni-icons type="arrowright" size="16" :color="themePalette.textSecondary" />
             </view>
             <view class="settings-item" @click="handlePrivacyPolicy">
                 <text class="item-label">隐私政策</text>
-                <uni-icons type="arrowright" size="16" color="#999" />
+                <uni-icons type="arrowright" size="16" :color="themePalette.textSecondary" />
             </view>
             <view class="settings-item" @click="handleFeedback">
                 <text class="item-label">反馈与帮助</text>
-                <uni-icons type="arrowright" size="16" color="#999" />
+                <uni-icons type="arrowright" size="16" :color="themePalette.textSecondary" />
             </view>
             <view class="settings-item" @click="handleShareApp">
                 <text class="item-label">分享应用</text>
-                <uni-icons type="arrowright" size="16" color="#999" />
+                <uni-icons type="arrowright" size="16" :color="themePalette.textSecondary" />
             </view>
         </view>
     </view>
 </template>
 
 <script lang="ts" setup>
-import { ref, reactive, computed } from "vue";
+import { ref, reactive, computed, onMounted, onUnmounted } from "vue";
 import { onLoad, onShow } from "@dcloudio/uni-app";
 import {
     authMe,
@@ -309,11 +304,43 @@ import {
     getApiBaseUrl,
     setAuthUser,
 } from "../../common/api";
-import { applyTheme, getStoredTheme, ThemeKey } from "../../common/theme";
+import { applyTheme, createThemeCssVars, getRuntimeThemePalette, getStoredTheme, ThemeMode, type ThemePalette } from "../../common/theme";
 import { maskPhoneNumber } from "../../common/phoneMask";
+import CustomNavBar from "../../components/CustomNavBar.vue";
 import uniIcons from "@/uni_modules/uni-icons/components/uni-icons/uni-icons.vue";
 import uniNumberBox from "@/uni_modules/uni-number-box/components/uni-number-box/uni-number-box.vue";
 import uniSegmentedControl from "@/uni_modules/uni-segmented-control/components/uni-segmented-control/uni-segmented-control.vue";
+
+type LocalSettings = {
+    generateCount: number;
+    stylePreference: string;
+    autoCopy: boolean;
+    theme: ThemeMode;
+    fontSize: "small" | "medium" | "large";
+    animation: boolean;
+    retentionTime: string;
+    autoClean: boolean;
+    cloudSync: boolean;
+};
+
+const SETTINGS_STORAGE_KEY = "app_settings";
+const STYLE_OPTIONS = [
+    { label: "现代中文", value: "chinese_modern" },
+    { label: "传统中文", value: "chinese_traditional" },
+    { label: "奇幻风格", value: "fantasy" },
+];
+const STYLE_VALUES = STYLE_OPTIONS.map((item) => item.value);
+const DEFAULT_SETTINGS: LocalSettings = {
+    generateCount: 3,
+    stylePreference: "chinese_modern",
+    autoCopy: true,
+    theme: "light",
+    fontSize: "medium",
+    animation: true,
+    retentionTime: "30天",
+    autoClean: false,
+    cloudSync: true,
+};
 
 const isLogin = ref(false);
 const userInfo = reactive({
@@ -326,19 +353,10 @@ const userInfo = reactive({
 const maskedPhone = computed(() => maskPhoneNumber(userInfo.phone));
 
 const settings = reactive({
-    generateCount: 3,
-    aiModel: "gpt-4",
-    stylePreference: "realistic",
-    autoCopy: true,
-    theme: "light",
-    fontSize: "medium",
-    animation: true,
-    retentionTime: "30天",
-    autoClean: false,
-    cloudSync: true,
+    ...DEFAULT_SETTINGS,
 });
 
-const styles = ["写实", "卡通", "抽象"];
+const styles = STYLE_OPTIONS.map((item) => item.label);
 const styleIndex = ref(0);
 
 // 接入后端：可用API与健康、统计
@@ -365,10 +383,6 @@ const themes = [
     { name: "浅色", value: "light" },
     { name: "深色", value: "dark" },
     { name: "自动", value: "auto" },
-    { name: "蓝色", value: "blue" },
-    { name: "绿色", value: "green" },
-    { name: "粉色", value: "pink" },
-    { name: "紫色", value: "purple" },
 ];
 
 const fontSizes = ["small", "medium", "large"];
@@ -376,9 +390,74 @@ const fontSizeIndex = ref(1);
 
 const retentionTimes = ["7天", "30天", "永久"];
 const retentionIndex = ref(1);
+const themePalette = ref<ThemePalette>(getRuntimeThemePalette());
+const themeVars = computed(() => createThemeCssVars(themePalette.value));
 
-const handleBack = () => {
-    uni.navigateBack();
+const syncTheme = () => {
+    themePalette.value = getRuntimeThemePalette();
+};
+
+const persistSettings = () => {
+    try {
+        uni.setStorageSync(SETTINGS_STORAGE_KEY, { ...settings });
+    } catch (e) {}
+};
+
+const restoreSettings = () => {
+    try {
+        const stored = uni.getStorageSync(SETTINGS_STORAGE_KEY);
+        if (!stored || typeof stored !== "object") {
+            return;
+        }
+
+        settings.generateCount =
+            typeof stored.generateCount === "number"
+                ? Math.min(10, Math.max(1, stored.generateCount))
+                : DEFAULT_SETTINGS.generateCount;
+        settings.stylePreference = STYLE_VALUES.includes(stored.stylePreference)
+            ? stored.stylePreference
+            : DEFAULT_SETTINGS.stylePreference;
+        settings.autoCopy =
+            typeof stored.autoCopy === "boolean"
+                ? stored.autoCopy
+                : DEFAULT_SETTINGS.autoCopy;
+        settings.theme =
+            stored.theme === "light" ||
+            stored.theme === "dark" ||
+            stored.theme === "auto"
+                ? stored.theme
+                : DEFAULT_SETTINGS.theme;
+        settings.fontSize = fontSizes.includes(stored.fontSize)
+            ? stored.fontSize
+            : DEFAULT_SETTINGS.fontSize;
+        settings.animation =
+            typeof stored.animation === "boolean"
+                ? stored.animation
+                : DEFAULT_SETTINGS.animation;
+        settings.retentionTime = retentionTimes.includes(stored.retentionTime)
+            ? stored.retentionTime
+            : DEFAULT_SETTINGS.retentionTime;
+        settings.autoClean =
+            typeof stored.autoClean === "boolean"
+                ? stored.autoClean
+                : DEFAULT_SETTINGS.autoClean;
+        settings.cloudSync =
+            typeof stored.cloudSync === "boolean"
+                ? stored.cloudSync
+                : DEFAULT_SETTINGS.cloudSync;
+    } catch (e) {}
+};
+
+const syncUiStateFromSettings = () => {
+    styleIndex.value = Math.max(
+        0,
+        STYLE_VALUES.indexOf(settings.stylePreference),
+    );
+    fontSizeIndex.value = Math.max(0, fontSizes.indexOf(settings.fontSize));
+    retentionIndex.value = Math.max(
+        0,
+        retentionTimes.indexOf(settings.retentionTime),
+    );
 };
 
 const handleUserClick = () => {
@@ -427,54 +506,75 @@ const syncAuthState = async () => {
 
 const handleStyleChange = (e: any) => {
     styleIndex.value = e.currentIndex;
-    settings.stylePreference = ["realistic", "cartoon", "abstract"][
-        e.currentIndex
-    ];
+    settings.stylePreference =
+        STYLE_VALUES[e.currentIndex] || DEFAULT_SETTINGS.stylePreference;
+    persistSettings();
+};
+
+const handleGenerateCountChange = (value: number | { value?: number }) => {
+    const nextValue =
+        typeof value === "number" ? value : Number(value?.value ?? settings.generateCount);
+    settings.generateCount = Math.min(10, Math.max(1, nextValue || DEFAULT_SETTINGS.generateCount));
+    persistSettings();
 };
 
 const handleAutoCopyChange = (e: any) => {
     settings.autoCopy = e.detail.value;
+    persistSettings();
 };
 
 const syncThemeFromStorage = () => {
-    const stored = getStoredTheme();
-    settings.theme = stored;
-    applyTheme(stored);
+    const storedTheme = getStoredTheme();
+    settings.theme = storedTheme;
+    applyTheme(storedTheme);
+    syncTheme();
 };
 
 const handleThemeChange = (e: any) => {
-    const value = (e?.detail?.value ?? "light") as ThemeKey;
+    const value = (e?.detail?.value ?? "light") as ThemeMode;
     settings.theme = value;
     applyTheme(value);
+    syncTheme();
+    persistSettings();
 };
 
 const handleFontSizeChange = (e: any) => {
     fontSizeIndex.value = e.detail.value;
-    settings.fontSize = fontSizes[e.detail.value];
+    settings.fontSize = fontSizes[e.detail.value] || DEFAULT_SETTINGS.fontSize;
+    persistSettings();
 };
 
 const handleAnimationChange = (e: any) => {
     settings.animation = e.detail.value;
+    persistSettings();
 };
 
 const handleRetentionChange = (e: any) => {
     retentionIndex.value = e.detail.value;
-    settings.retentionTime = retentionTimes[e.detail.value];
+    settings.retentionTime =
+        retentionTimes[e.detail.value] || DEFAULT_SETTINGS.retentionTime;
+    persistSettings();
 };
 
 const handleAutoCleanChange = (e: any) => {
     settings.autoClean = e.detail.value;
+    persistSettings();
 };
 
 const handleBackup = () => {
     uni.showToast({
-        title: "备份成功",
-        icon: "success",
+        title: "备份恢复功能开发中",
+        icon: "none",
     });
 };
 
 const handleCloudSyncChange = (e: any) => {
     settings.cloudSync = e.detail.value;
+    persistSettings();
+    uni.showToast({
+        title: "仅保存同步偏好，云端同步暂未接入",
+        icon: "none",
+    });
 };
 
 const handleLogout = async () => {
@@ -540,6 +640,14 @@ const handleFeedback = () => {
 };
 
 const handleShareApp = () => {
+    if (typeof uni.share !== "function") {
+        uni.showToast({
+            title: "当前环境暂不支持分享",
+            icon: "none",
+        });
+        return;
+    }
+
     uni.share({
         provider: "weixin",
         type: 0,
@@ -604,6 +712,8 @@ const handleApiChange = (e: any) => {
 };
 
 onLoad(() => {
+    restoreSettings();
+    syncUiStateFromSettings();
     syncThemeFromStorage();
     syncAuthState();
     loadOptions();
@@ -612,52 +722,31 @@ onLoad(() => {
 });
 
 onShow(() => {
+    syncTheme();
     syncAuthState();
+});
+
+onMounted(() => {
+    if (typeof uni.$on === "function") {
+        uni.$on("theme-changed", syncTheme);
+    }
+});
+
+onUnmounted(() => {
+    if (typeof uni.$off === "function") {
+        uni.$off("theme-changed", syncTheme);
+    }
 });
 </script>
 
 <style>
 page {
     height: 100%;
-    background-color: #f5f5f5;
 }
 
 .settings-container {
     padding-bottom: 40rpx;
-}
-
-.nav-bar {
-    height: 44px;
-    background-color: #ffffff;
-    border-bottom: 1px solid #eee;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 0 10px;
-    flex-shrink: 0;
-}
-
-.back-btn {
-    width: 30px;
-    height: 30px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border: none;
-    background: none;
-    padding: 0;
-}
-
-.page-title {
-    flex: 1;
-    font-size: 16px;
-    font-weight: bold;
-    color: #333;
-    text-align: center;
-}
-
-.placeholder {
-    width: 30px;
+    background-color: var(--page-bg);
 }
 
 .user-section {
@@ -665,7 +754,7 @@ page {
     flex-direction: column;
     align-items: center;
     padding: 40rpx 0;
-    background-color: #fff;
+    background-color: var(--surface);
     margin-bottom: 20rpx;
 }
 
@@ -673,7 +762,7 @@ page {
     width: 120rpx;
     height: 120rpx;
     border-radius: 50%;
-    background-color: #f0f0f0;
+    background-color: var(--surface-muted);
     display: flex;
     justify-content: center;
     align-items: center;
@@ -695,34 +784,34 @@ page {
 .user-name {
     font-size: 36rpx;
     font-weight: bold;
-    color: #333;
+    color: var(--text-primary);
     margin-bottom: 10rpx;
 }
 
 .login-text {
     font-size: 36rpx;
-    color: #4a90e2;
+    color: var(--accent);
     font-weight: bold;
 }
 
 .vip-tag {
     font-size: 24rpx;
-    color: #fff;
-    background-color: #ff9500;
+    color: var(--accent-contrast);
+    background-color: var(--warning);
     padding: 4rpx 16rpx;
     border-radius: 20rpx;
 }
 
 .member-tag {
     font-size: 24rpx;
-    color: #999;
-    background-color: #f0f0f0;
+    color: var(--text-secondary);
+    background-color: var(--surface-muted);
     padding: 4rpx 16rpx;
     border-radius: 20rpx;
 }
 
 .settings-group {
-    background-color: #fff;
+    background-color: var(--surface);
     margin-bottom: 20rpx;
     border-radius: 12rpx;
     overflow: hidden;
@@ -732,8 +821,8 @@ page {
     display: block;
     padding: 24rpx 32rpx;
     font-size: 28rpx;
-    color: #999;
-    background-color: #f9f9f9;
+    color: var(--text-secondary);
+    background-color: var(--surface-soft);
 }
 
 .settings-item {
@@ -741,7 +830,7 @@ page {
     justify-content: space-between;
     align-items: center;
     padding: 28rpx 32rpx;
-    border-bottom: 1rpx solid #f0f0f0;
+    border-bottom: 1rpx solid var(--border-color);
 }
 
 .settings-item:last-child {
@@ -750,18 +839,18 @@ page {
 
 .item-label {
     font-size: 32rpx;
-    color: #333;
+    color: var(--text-primary);
 }
 
 .item-value {
     font-size: 32rpx;
-    color: #999;
+    color: var(--text-secondary);
 }
 
 .picker-value {
     display: flex;
     align-items: center;
-    color: #999;
+    color: var(--text-secondary);
 }
 
 .radio-item {
@@ -773,7 +862,7 @@ page {
 .radio-item text {
     margin-left: 10rpx;
     font-size: 28rpx;
-    color: #333;
+    color: var(--text-primary);
 }
 
 .slider-labels {
@@ -785,15 +874,15 @@ page {
 
 .slider-labels text {
     font-size: 24rpx;
-    color: #999;
+    color: var(--text-secondary);
 }
 
 .backup-btn,
 .stats-btn,
 .clear-btn,
 .config-btn {
-    border: 1rpx solid #4a90e2;
-    color: #4a90e2;
+    border: 1rpx solid var(--accent);
+    color: var(--accent);
     background-color: transparent;
     border-radius: 40rpx;
     padding: 0 24rpx;
@@ -802,18 +891,18 @@ page {
 }
 
 .config-btn.danger {
-    border-color: #e74c3c;
-    color: #e74c3c;
+    border-color: var(--danger);
+    color: var(--danger);
 }
 
 .backup-btn:active,
 .stats-btn:active,
 .clear-btn:active,
 .config-btn:active {
-    background-color: rgba(74, 144, 226, 0.1);
+    background-color: var(--interactive-active-bg);
 }
 
 .config-btn.danger:active {
-    background-color: rgba(231, 76, 60, 0.1);
+    background-color: var(--surface-muted);
 }
 </style>
