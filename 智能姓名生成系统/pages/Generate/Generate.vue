@@ -190,6 +190,7 @@
 		deleteFavorites,
 		getModels,
 		getAuthUser,
+		type ApiFeatureValue,
 		type GeneratedName,
 		type ModelInfo,
 	} from '../../common/api';
@@ -209,6 +210,15 @@
 		stylePreference?: string;
 		autoCopy?: boolean;
 	}
+
+	interface PickerChangeEvent {
+		detail: {
+			value: string | number;
+		};
+	}
+
+	type PageLoadOptions = Record<string, string | string[] | undefined>;
+	type FeatureDisplayValue = ApiFeatureValue | undefined;
 
 	const description = ref('');
 	const isGenerating = ref(false);
@@ -255,6 +265,19 @@
 
 	const syncTheme = () => {
 		themePalette.value = getRuntimeThemePalette();
+	};
+
+	const getErrorMessage = (error: unknown, fallback: string) => {
+		if (error instanceof Error && typeof error.message === 'string' && error.message.trim()) {
+			return error.message;
+		}
+		if (typeof error === 'object' && error !== null && 'message' in error) {
+			const message = error.message;
+			if (typeof message === 'string' && message.trim()) {
+				return message;
+			}
+		}
+		return fallback;
 	};
 
 	const styleLabelMap: Record<string, string> = {
@@ -362,7 +385,7 @@
 	const getStoredAppSettings = (): StoredAppSettings => {
 		try {
 			const stored = uni.getStorageSync('app_settings');
-			return stored && typeof stored === 'object' ? stored : {};
+			return stored && typeof stored === 'object' ? (stored as StoredAppSettings) : {};
 		} catch (error) {
 			return {};
 		}
@@ -418,7 +441,7 @@
 				// 读取设置页保存的默认 API（preferred_api），如果可用则默认选中
 				try {
 					const saved = uni.getStorageSync('preferred_api');
-					if (saved && availableApis.value.length) {
+					if (typeof saved === 'string' && availableApis.value.length) {
 						const idx = availableApis.value.indexOf(saved);
 						if (idx >= 0) {
 							apiIndex.value = idx;
@@ -497,9 +520,15 @@
 		}
 	});
 
-	onLoad(async (options) => {
+	onLoad(async (options?: PageLoadOptions) => {
 		syncTheme();
-		const preset = typeof options?.preset === 'string' ? options.preset.trim() : '';
+		const presetValue = options?.preset;
+		const preset =
+			typeof presetValue === 'string'
+				? presetValue.trim()
+				: Array.isArray(presetValue)
+					? String(presetValue[0] || '').trim()
+					: '';
 		if (preset) {
 			description.value = preset;
 		}
@@ -609,8 +638,8 @@
 					icon: 'none',
 				});
 			}
-		} catch (error : any) {
-			generationError.value = error?.message || '生成失败，请稍后再试';
+		} catch (error: unknown) {
+			generationError.value = getErrorMessage(error, '生成失败，请稍后再试');
 			uni.showToast({
 				title: generationError.value,
 				icon: 'none',
@@ -654,9 +683,10 @@
 			} else {
 				await deleteFavorites(item.id);
 			}
-		} catch (error: any) {
+		} catch (error: unknown) {
+			const errorMessage = getErrorMessage(error, '');
 			const message =
-				typeof error?.message === 'string' && error.message.includes('401')
+				errorMessage.includes('401')
 					? '登录状态已失效，请重新登录'
 					: item.isFavorite
 						? '收藏失败'
@@ -673,26 +703,26 @@
 		}
 	};
 
-	const handleStyleChange = (e : any) => {
+	const handleStyleChange = (e: PickerChangeEvent) => {
 		styleIndex.value = Number(e.detail.value) || 0;
 	};
-	const handleGenderChange = (e : any) => {
+	const handleGenderChange = (e: PickerChangeEvent) => {
 		genderIndex.value = Number(e.detail.value) || 0;
 	};
-	const handleAgeChange = (e : any) => {
+	const handleAgeChange = (e: PickerChangeEvent) => {
 		ageIndex.value = Number(e.detail.value) || 0;
 	};
-	const handleApiChange = (e : any) => {
+	const handleApiChange = (e: PickerChangeEvent) => {
 		if (!availableApis.value.length) {
 			apiIndex.value = 0;
 			return;
 		}
 		apiIndex.value = Number(e.detail.value) || 0;
 	};
-	const handleCountChange = (e : any) => {
+	const handleCountChange = (e: PickerChangeEvent) => {
 		countIndex.value = Number(e.detail.value) || 0;
 	};
-	const handleModelChange = (e : any) => {
+	const handleModelChange = (e: PickerChangeEvent) => {
 		if (!availableModels.value.length) {
 			modelIndex.value = 0;
 			return;
@@ -700,7 +730,7 @@
 		modelIndex.value = Number(e.detail.value) || 0;
 	};
 
-	const formatFeatureLabel = (key : string, value : any) => {
+	const formatFeatureLabel = (key: string, value: FeatureDisplayValue) => {
 		const labelMap: Record<string, string> = {
 			length: '长度',
 			character_count: '字符数',
@@ -717,7 +747,7 @@
 			return `${label}:${value ? '是' : '否'}`;
 		}
 
-		return `${label}:${value}`;
+		return `${label}:${value ?? '-'}`;
 	};
 
 	const refreshHealth = async () => {

@@ -1,4 +1,11 @@
-declare const uni: any;
+interface UniRouterLike {
+	navigateTo: (options: { url: string }) => void;
+	redirectTo: (options: { url: string }) => void;
+	switchTab: (options: { url: string }) => void;
+	reLaunch: (options: { url: string }) => void;
+}
+
+declare const uni: UniRouterLike;
 
 export const routes = {
 	index: '/pages/Index/Index',
@@ -24,5 +31,4 @@ export const switchTab = (url: string) => {
 export const reLaunch = (url: string) => {
 	uni.reLaunch({ url });
 };
-
 

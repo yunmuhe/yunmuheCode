@@ -9,7 +9,7 @@ from datetime import UTC, datetime
 from typing import Dict, List, Optional
 from zoneinfo import ZoneInfo
 
-from sqlalchemy import and_, delete, select
+from sqlalchemy import and_, delete, func, select
 
 from src.db.database import get_engine, get_session_factory, init_db
 from src.db.models import FavoriteRecord, GenerationRecord
@@ -142,6 +142,19 @@ class RecordService:
                 "page": safe_page,
                 "page_size": safe_size,
             }
+
+    def count_user_records_today(self, user_id: int) -> int:
+        start_of_today = datetime.now(BEIJING_TZ).replace(
+            hour=0, minute=0, second=0, microsecond=0, tzinfo=None
+        )
+        with self.SessionLocal() as session:
+            stmt = select(func.count(GenerationRecord.id)).where(
+                and_(
+                    GenerationRecord.user_id == int(user_id),
+                    GenerationRecord.created_at >= start_of_today,
+                )
+            )
+            return int(session.execute(stmt).scalar_one() or 0)
 
     def delete_record(self, record_id: int) -> bool:
         with self.SessionLocal() as session:

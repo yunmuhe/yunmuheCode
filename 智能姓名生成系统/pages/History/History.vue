@@ -89,10 +89,34 @@
 <script lang="ts" setup>
 	import { computed, onMounted, onUnmounted, ref } from 'vue';
 	import { onLoad, onShow } from '@dcloudio/uni-app';
-	import { getHistoryList } from '../../common/api';
+	import { getHistoryList, type HistoryItem } from '../../common/api';
 	import { createThemeCssVars, getRuntimeThemePalette, type ThemePalette } from '../../common/theme';
 	import CustomNavBar from '../../components/CustomNavBar.vue';
 	import uniIcons from '@/uni_modules/uni-icons/components/uni-icons/uni-icons.vue';
+
+	interface HistoryViewItem extends Omit<HistoryItem, 'time'> {
+		expanded: boolean;
+		time: number;
+	}
+
+	interface HistoryGroup {
+		title: string;
+		items: HistoryViewItem[];
+	}
+
+	interface PickerChangeEvent {
+		detail: {
+			value: string | number;
+		};
+	}
+
+	interface SystemInfoResult {
+		windowHeight: number;
+	}
+
+	interface BoundingRectResult {
+		height?: number;
+	}
 
 	const timeRange = ref([
 		{ label: '今天', value: 1 },
@@ -110,7 +134,7 @@
 	const sortIndex = ref(0);
 	const draftSearchText = ref('');
 	const submittedSearchText = ref('');
-	const historyList = ref<any[]>([]);
+	const historyList = ref<HistoryViewItem[]>([]);
 	const loading = ref(false);
 	const noMore = ref(false);
 	const page = ref(1);
@@ -163,10 +187,10 @@
 		const yesterday = new Date(today);
 		yesterday.setDate(yesterday.getDate() - 1);
 
-		const groups = [
-			{ title: '今天', items: [] as any[] },
-			{ title: '昨天', items: [] as any[] },
-			{ title: '更早', items: [] as any[] }
+		const groups: HistoryGroup[] = [
+			{ title: '今天', items: [] },
+			{ title: '昨天', items: [] },
+			{ title: '更早', items: [] }
 		];
 
 		filteredHistoryList.value.forEach((item) => {
@@ -216,13 +240,13 @@
 
 	const getSystemInfo = () => {
 		uni.getSystemInfo({
-			success: (res) => {
+			success: (res: SystemInfoResult) => {
 				const query = uni.createSelectorQuery();
 				query
 					.select('.filter-bar')
-					.boundingClientRect((data) => {
+					.boundingClientRect((data: BoundingRectResult | null) => {
 						if (data) {
-							scrollHeight.value = res.windowHeight - data.height - 44;
+							scrollHeight.value = res.windowHeight - (data.height || 0) - 44;
 						} else {
 							scrollHeight.value = res.windowHeight - 100;
 						}
@@ -242,7 +266,7 @@
 				q: submittedSearchText.value.trim(),
 			});
 			if (res.success) {
-				const items = (res.items || []).map((it: any) => ({
+				const items: HistoryViewItem[] = (res.items || []).map((it: HistoryItem) => ({
 					...it,
 					expanded: false,
 					time: new Date(it.time).getTime()
@@ -269,11 +293,11 @@
 		fetchHistory();
 	};
 
-	const handleTimeChange = (e: any) => {
+	const handleTimeChange = (e: PickerChangeEvent) => {
 		timeIndex.value = Number(e.detail.value) || 0;
 	};
 
-	const handleSortChange = (e: any) => {
+	const handleSortChange = (e: PickerChangeEvent) => {
 		sortIndex.value = Number(e.detail.value) || 0;
 	};
 
@@ -287,7 +311,7 @@
 		fetchHistory();
 	};
 
-	const toggleExpand = (item: any) => {
+	const toggleExpand = (item: HistoryViewItem) => {
 		item.expanded = !item.expanded;
 	};
 
