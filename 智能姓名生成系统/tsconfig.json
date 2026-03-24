@@ -4,6 +4,8 @@
     "module": "ESNext",
     "moduleResolution": "Node",
     "strict": false,
+    "noImplicitAny": true,
+    "useUnknownInCatchVariables": true,
     "allowJs": false,
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,

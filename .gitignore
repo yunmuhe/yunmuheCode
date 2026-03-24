@@ -100,6 +100,7 @@ coverage.xml
 project_structure.txt
 temp/
 tmp/
+.playwright-cli/
 
 # Database (忽略所有数据库文件，包括生成的names_corpus.db)
 *.db

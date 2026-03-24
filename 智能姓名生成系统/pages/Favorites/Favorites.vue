@@ -353,7 +353,7 @@
 		padding: 8rpx 24rpx;
 		margin-right: 16rpx;
 		border-radius: 40rpx;
-		font-size: 12px;
+		font-size: var(--font-px-sm);
 		color: var(--text-secondary);
 		background-color: var(--surface-muted);
 	}
@@ -384,7 +384,7 @@
 	}
 
 	.empty-text {
-		font-size: 14px;
+		font-size: var(--font-px-base);
 		color: var(--text-secondary);
 		margin-bottom: 32rpx;
 		text-align: center;
@@ -395,7 +395,7 @@
 		width: 320rpx;
 		height: 80rpx;
 		line-height: 80rpx;
-		font-size: 32rpx;
+		font-size: var(--font-rpx-xl);
 		border-radius: 40rpx;
 		background-color: var(--accent);
 		color: var(--accent-contrast);
@@ -434,7 +434,7 @@
 	}
 
 	.name {
-		font-size: 16px;
+		font-size: var(--font-px-lg);
 		font-weight: 500;
 		color: var(--text-primary);
 		flex: 1;
@@ -457,7 +457,7 @@
 
 	.meaning {
 		display: block;
-		font-size: 13px;
+		font-size: var(--font-px-md);
 		color: var(--text-secondary);
 		margin-bottom: 16rpx;
 		overflow: hidden;
@@ -473,7 +473,7 @@
 	.style-tag,
 	.gender-tag {
 		padding: 4rpx 12rpx;
-		font-size: 10px;
+		font-size: var(--font-px-2xs);
 		border-radius: 4px;
 		margin-right: 8rpx;
 	}
@@ -489,7 +489,7 @@
 	}
 
 	.time {
-		font-size: 11px;
+		font-size: var(--font-px-xs);
 		color: var(--text-secondary);
 	}
 
@@ -513,13 +513,13 @@
 	}
 
 	.select-text {
-		font-size: 14px;
+		font-size: var(--font-px-base);
 		color: var(--text-primary);
 		margin-left: 8rpx;
 	}
 
 	.selected-count {
-		font-size: 12px;
+		font-size: var(--font-px-sm);
 		color: var(--text-secondary);
 		flex: 1;
 	}
@@ -529,7 +529,7 @@
 		padding: 0 24rpx;
 		height: 64rpx;
 		line-height: 64rpx;
-		font-size: 14px;
+		font-size: var(--font-px-base);
 		border-radius: 32rpx;
 	}
 </style>

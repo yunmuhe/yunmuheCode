@@ -18,7 +18,7 @@
 				</view>
 			</view>
 
-			<view class="form">
+			<form class="form" @submit="handleSubmit">
 				<view class="field">
 					<text class="label">{{ copy.phone }}</text>
 					<input
@@ -72,7 +72,7 @@
 							maxlength="6"
 							:placeholder="copy.codePlaceholder"
 						/>
-						<button class="code-btn" :disabled="codeCountDown > 0" @click="sendCode">
+						<button class="code-btn" type="button" :disabled="codeCountDown > 0" @click="sendCode">
 							{{ codeCountDown > 0 ? codeCountDown + 's' : copy.sendCode }}
 						</button>
 					</view>
@@ -85,10 +85,10 @@
 					</label>
 				</checkbox-group>
 
-				<button class="submit-btn" :disabled="loading" @click="handleSubmit">
+				<button class="submit-btn" type="submit" :disabled="loading" form-type="submit">
 					{{ loading ? copy.processing : mode === 'login' ? copy.loginNow : copy.registerNow }}
 				</button>
-			</view>
+			</form>
 
 			<view class="footer-tip">
 				<text v-if="mode === 'login'">{{ copy.noAccount }}</text>
@@ -101,7 +101,8 @@
 	</view>
 </template>
 
-<script>
+<script lang="ts">
+import { defineComponent } from 'vue';
 import {
 	authLogin,
 	authMe,
@@ -112,22 +113,48 @@ import {
 	setAuthUser,
 } from '../../common/api';
 
-export default {
+type AuthMode = 'login' | 'register';
+type CodeTimer = ReturnType<typeof setInterval> | null;
+
+interface AuthForm {
+	phone: string;
+	password: string;
+	confirmPassword: string;
+	code: string;
+}
+
+interface ProtocolChangeEvent {
+	detail?: {
+		value?: string[];
+	};
+}
+
+const createInitialForm = (): AuthForm => ({
+	phone: '',
+	password: '',
+	confirmPassword: '',
+	code: '',
+});
+
+const getErrorMessage = (error: unknown): string => {
+	if (error instanceof Error && error.message) {
+		return error.message;
+	}
+
+	return '请求失败';
+};
+
+export default defineComponent({
 	data() {
 		return {
-			mode: 'login',
+			mode: 'login' as AuthMode,
 			loading: false,
 			showPassword: false,
 			showConfirmPassword: false,
 			agreeProtocol: false,
 			codeCountDown: 0,
-			codeTimer: null,
-			form: {
-				phone: '',
-				password: '',
-				confirmPassword: '',
-				code: '',
-			},
+			codeTimer: null as CodeTimer,
+			form: createInitialForm(),
 			copy: {
 				brandTitle: '\u667a\u80fd\u59d3\u540d\u751f\u6210\u7cfb\u7edf',
 				brandSubtitle: '\u767b\u5f55\u540e\u53ef\u540c\u6b65\u5386\u53f2\u8bb0\u5f55\u4e0e\u6536\u85cf',
@@ -173,11 +200,11 @@ export default {
 				} else {
 					clearAuthToken();
 				}
-			} catch (error) {
+			} catch (_error: unknown) {
 				clearAuthToken();
 			}
 		},
-		switchMode(mode) {
+		switchMode(mode: AuthMode) {
 			this.mode = mode;
 			this.loading = false;
 			this.form.password = '';
@@ -185,10 +212,10 @@ export default {
 			this.form.code = '';
 			this.agreeProtocol = false;
 		},
-		onProtocolChange(e) {
+		onProtocolChange(e: ProtocolChangeEvent) {
 			this.agreeProtocol = (e.detail.value || []).indexOf('agree') !== -1;
 		},
-		isValidPhone(phone) {
+		isValidPhone(phone: string) {
 			return /^1\d{10}$/.test(phone);
 		},
 		sendCode() {
@@ -294,9 +321,9 @@ export default {
 				setTimeout(() => {
 					uni.reLaunch({ url: '/pages/Index/Index' });
 				}, 300);
-			} catch (error) {
+			} catch (error: unknown) {
 				uni.showToast({
-					title: error?.message || '\u8bf7\u6c42\u5931\u8d25',
+					title: getErrorMessage(error),
 					icon: 'none',
 				});
 			} finally {
@@ -304,7 +331,7 @@ export default {
 			}
 		},
 	},
-};
+});
 </script>
 
 <style>
@@ -315,6 +342,7 @@ page {
 .auth-page {
 	position: relative;
 	min-height: 100%;
+	width: 100%;
 	padding: 50rpx 36rpx 40rpx;
 	box-sizing: border-box;
 	background: linear-gradient(160deg, #e0f2fe 0%, #f0f9ff 45%, #ecfeff 100%);
@@ -346,11 +374,14 @@ page {
 .auth-card {
 	position: relative;
 	z-index: 1;
-	margin-top: 40rpx;
+	width: 100%;
+	max-width: 680rpx;
+	margin: 40rpx auto 0;
 	background: rgba(255, 255, 255, 0.95);
 	backdrop-filter: blur(8px);
 	border-radius: 28rpx;
 	padding: 40rpx 34rpx;
+	box-sizing: border-box;
 	box-shadow: 0 20rpx 60rpx rgba(12, 74, 110, 0.15);
 }
 
@@ -360,7 +391,7 @@ page {
 
 .brand-title {
 	display: block;
-	font-size: 42rpx;
+	font-size: var(--font-rpx-3xl);
 	font-weight: 700;
 	color: #0f172a;
 	letter-spacing: 1rpx;
@@ -369,7 +400,7 @@ page {
 .brand-subtitle {
 	display: block;
 	margin-top: 12rpx;
-	font-size: 25rpx;
+	font-size: var(--font-rpx-sm);
 	color: #475569;
 }
 
@@ -387,7 +418,7 @@ page {
 	padding: 16rpx 0;
 	border-radius: 14rpx;
 	color: #64748b;
-	font-size: 28rpx;
+	font-size: var(--font-rpx-md);
 	font-weight: 600;
 	transition: all 0.2s ease;
 }
@@ -404,7 +435,7 @@ page {
 
 .label {
 	display: block;
-	font-size: 24rpx;
+	font-size: var(--font-rpx-xs);
 	color: #334155;
 	margin-bottom: 10rpx;
 }
@@ -415,7 +446,7 @@ page {
 	border: 2rpx solid #e2e8f0;
 	border-radius: 16rpx;
 	padding: 0 24rpx;
-	font-size: 28rpx;
+	font-size: var(--font-rpx-md);
 	color: #0f172a;
 	box-sizing: border-box;
 }
@@ -433,18 +464,19 @@ page {
 	right: 24rpx;
 	top: 50%;
 	transform: translateY(-50%);
-	font-size: 24rpx;
+	font-size: var(--font-rpx-xs);
 	color: #0284c7;
 }
 
 .code-wrap {
 	display: flex;
 	align-items: center;
+	gap: 16rpx;
 }
 
 .code-input {
 	flex: 1;
-	margin-right: 16rpx;
+	min-width: 0;
 }
 
 .code-btn {
@@ -455,7 +487,8 @@ page {
 	border-radius: 16rpx;
 	background: linear-gradient(135deg, #0ea5e9, #06b6d4);
 	color: #ffffff;
-	font-size: 24rpx;
+	font-size: var(--font-rpx-xs);
+	flex-shrink: 0;
 }
 
 .code-btn[disabled] {
@@ -469,8 +502,9 @@ page {
 
 .protocol-label {
 	display: flex;
-	align-items: center;
-	font-size: 23rpx;
+	align-items: flex-start;
+	gap: 8rpx;
+	font-size: var(--font-rpx-2xs);
 	color: #475569;
 }
 
@@ -480,7 +514,7 @@ page {
 	border-radius: 18rpx;
 	background: linear-gradient(135deg, #0284c7, #14b8a6);
 	color: #ffffff;
-	font-size: 30rpx;
+	font-size: var(--font-rpx-lg);
 	font-weight: 600;
 }
 
@@ -492,7 +526,7 @@ page {
 .footer-tip {
 	margin-top: 30rpx;
 	text-align: center;
-	font-size: 24rpx;
+	font-size: var(--font-rpx-xs);
 	color: #64748b;
 }
 
@@ -500,5 +534,35 @@ page {
 	margin-left: 8rpx;
 	color: #0369a1;
 	font-weight: 600;
+}
+
+@media screen and (max-width: 420px) {
+	.auth-page {
+		padding: 36rpx 24rpx 32rpx;
+	}
+
+	.auth-card {
+		margin-top: 24rpx;
+		padding: 32rpx 24rpx;
+		border-radius: 24rpx;
+	}
+
+	.brand-title {
+		font-size: var(--font-rpx-2xl);
+	}
+
+	.brand-subtitle {
+		font-size: var(--font-rpx-xs);
+	}
+
+	.code-btn {
+		width: 176rpx;
+		font-size: var(--font-rpx-2xs);
+	}
+
+	.protocol-label {
+		font-size: var(--font-rpx-2xs);
+		line-height: 1.5;
+	}
 }
 </style>

@@ -805,12 +805,12 @@
 	}
 
 	.health-text {
-		font-size: 13px;
+		font-size: var(--font-px-md);
 		color: var(--text-primary);
 		margin-right: 5px;
 	}
 	.health-sub {
-		font-size: 11px;
+		font-size: var(--font-px-xs);
 		color: var(--text-secondary);
 	}
 
@@ -850,6 +850,7 @@
 		display: flex;
 		flex-direction: column;
 		min-width: 0;
+		overflow: hidden;
 	}
 
 	.option-item:last-child {
@@ -857,13 +858,16 @@
 	}
 
 	.option-label {
-		font-size: 12px;
+		font-size: var(--font-px-sm);
 		color: var(--text-secondary);
 		margin-bottom: 4px;
 	}
 
 	.option-value {
-		font-size: 14px;
+		display: block;
+		width: 100%;
+		min-width: 0;
+		font-size: var(--font-px-base);
 		color: var(--text-primary);
 		overflow: hidden;
 		text-overflow: ellipsis;
@@ -881,7 +885,7 @@
 	}
 
 	.option-value.base-url {
-		font-size: 11px;
+		font-size: var(--font-px-xs);
 		color: var(--warning);
 		word-break: break-all;
 		white-space: normal;
@@ -945,6 +949,7 @@
 	.message-content {
 		max-width: 85%;
 		width: 100%;
+		min-width: 0;
 	}
 
 	.message-bubble {
@@ -972,10 +977,11 @@
 	.error-bubble {
 		background-color: var(--warning-soft);
 		border: 1px solid var(--warning-border);
+		word-break: break-word;
 	}
 
 	.message-text {
-		font-size: 14px;
+		font-size: var(--font-px-base);
 		line-height: 20px;
 		color: inherit;
 	}
@@ -1001,7 +1007,7 @@
 	}
 
 	.name-text {
-		font-size: 16px;
+		font-size: var(--font-px-lg);
 		font-weight: bold;
 		color: var(--text-primary);
 	}
@@ -1026,7 +1032,7 @@
 	}
 
 	.meaning-text {
-		font-size: 13px;
+		font-size: var(--font-px-md);
 		color: var(--text-secondary);
 		line-height: 20px;
 		margin-bottom: 8px;
@@ -1039,7 +1045,7 @@
 	}
 
 	.tag {
-		font-size: 11px;
+		font-size: var(--font-px-xs);
 		color: var(--accent);
 		background-color: var(--accent-soft);
 		padding: 3px 8px;
@@ -1054,7 +1060,7 @@
 	}
 
 	.feature-pill {
-		font-size: 11px;
+		font-size: var(--font-px-xs);
 		color: var(--text-secondary);
 		background-color: var(--surface-muted);
 		padding: 3px 7px;
@@ -1065,7 +1071,7 @@
 		margin-top: 6px;
 		display: flex;
 		flex-direction: column;
-		font-size: 12px;
+		font-size: var(--font-px-sm);
 		color: var(--text-secondary);
 	}
 
@@ -1080,7 +1086,7 @@
 
 	.empty-text {
 		margin-top: 10px;
-		font-size: 13px;
+		font-size: var(--font-px-md);
 	}
 
 	/* 底部输入区域 */
@@ -1107,7 +1113,7 @@
 		width: 100%;
 		min-height: 20px;
 		max-height: 100px;
-		font-size: 14px;
+		font-size: var(--font-px-base);
 		line-height: 20px;
 		color: var(--text-primary);
 		padding: 5px 0;
@@ -1116,7 +1122,7 @@
 
 	.char-count {
 		text-align: right;
-		font-size: 10px;
+		font-size: var(--font-px-2xs);
 		color: var(--text-secondary);
 		margin-top: 5px;
 	}
@@ -1131,6 +1137,11 @@
 		display: flex;
 		align-items: center;
 		justify-content: center;
+	}
+
+	.send-btn .uni-icons,
+	.send-btn uni-text {
+		pointer-events: none;
 	}
 
 	.send-btn[disabled] {

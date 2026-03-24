@@ -84,7 +84,7 @@ page {
 
 .section-title {
     display: block;
-    font-size: 34rpx;
+    font-size: var(--font-rpx-2xl);
     font-weight: 600;
     color: var(--text-primary);
     margin-bottom: 20rpx;
@@ -93,7 +93,7 @@ page {
 .section-text,
 .section-tip {
     display: block;
-    font-size: 28rpx;
+    font-size: var(--font-rpx-md);
     line-height: 1.8;
     color: var(--text-secondary);
 }

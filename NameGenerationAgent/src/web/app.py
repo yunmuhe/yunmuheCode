@@ -5,6 +5,7 @@ Flask Web ?????
 import os
 import sys
 from datetime import datetime
+from urllib.parse import urlparse
 
 from flask import Flask, jsonify, request, session
 from flask_cors import CORS
@@ -201,18 +202,76 @@ def create_app():
 
 app = create_app()
 
-# 启用跨域支持，允许在uni-app前端中通过HTTP请求调用本地部署的智能体
-allowed_origins = os.getenv("ALLOWED_ORIGINS", "*")
-if allowed_origins.strip() == "*":
-    CORS(app, resources={r"/*": {"origins": "*"}}, supports_credentials=True)
+
+def get_allowed_origins():
+    raw_value = os.getenv("ALLOWED_ORIGINS", "*").strip()
+    if not raw_value or raw_value == "*":
+        return "*"
+
+    origins = [origin.strip() for origin in raw_value.split(",") if origin.strip()]
+    return origins or "*"
+
+
+allowed_origins = get_allowed_origins()
+
+# 保留 Flask-Cors 初始化，同时用 after_request 明确补齐响应头，
+# 避免本地 H5 联调时出现预检或普通请求缺少 CORS 头的问题。
+if allowed_origins == "*":
+    CORS(app, resources={r"/*": {"origins": "*"}})
 else:
-    origins = [
-        origin.strip() for origin in allowed_origins.split(",") if origin.strip()
-    ]
-    if origins:
-        CORS(app, resources={r"/*": {"origins": origins}}, supports_credentials=True)
-    else:
-        CORS(app, resources={r"/*": {"origins": "*"}}, supports_credentials=True)
+    CORS(app, resources={r"/*": {"origins": allowed_origins}})
+
+
+def resolve_cors_origin():
+    request_origin = request.headers.get("Origin")
+    if not request_origin:
+        return None
+
+    if allowed_origins == "*":
+        return request_origin
+
+    if request_origin in allowed_origins:
+        return request_origin
+
+    parsed_request_origin = urlparse(request_origin)
+    request_hostname = (parsed_request_origin.hostname or "").lower()
+
+    if request_hostname not in {"localhost", "127.0.0.1"}:
+        return None
+
+    allowed_hostnames = {
+        (urlparse(origin).hostname or "").lower()
+        for origin in allowed_origins
+        if isinstance(origin, str)
+    }
+
+    if request_hostname in allowed_hostnames:
+        return request_origin
+
+    return None
+
+
+@app.after_request
+def add_cors_headers(response):
+    cors_origin = resolve_cors_origin()
+    if not cors_origin:
+        return response
+
+    response.headers["Access-Control-Allow-Origin"] = cors_origin
+    response.headers["Vary"] = "Origin"
+    response.headers["Access-Control-Allow-Credentials"] = "true"
+
+    allow_methods = request.headers.get("Access-Control-Request-Method")
+    if allow_methods:
+        response.headers["Access-Control-Allow-Methods"] = allow_methods
+    elif request.method == "OPTIONS":
+        response.headers["Access-Control-Allow-Methods"] = "GET, POST, DELETE, OPTIONS"
+
+    allow_headers = request.headers.get("Access-Control-Request-Headers")
+    if allow_headers:
+        response.headers["Access-Control-Allow-Headers"] = allow_headers
+
+    return response
 
 try:
     from src.web.admin_views import admin_bp

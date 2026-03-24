@@ -8,7 +8,7 @@
 				<input
 					class="search-input"
 					placeholder="搜索描述内容"
-					:placeholder-style="`color:${themePalette.textSecondary};font-size:14px`"
+					:placeholder-style="`color:${themePalette.textSecondary};font-size:var(--font-px-base)`"
 					v-model="draftSearchText"
 					@confirm="handleSearch"
 				/>
@@ -88,7 +88,7 @@
 
 <script lang="ts" setup>
 	import { computed, onMounted, onUnmounted, ref } from 'vue';
-	import { onLoad, onShow } from '@dcloudio/uni-app';
+	import { onLoad, onReady, onShow } from '@dcloudio/uni-app';
 	import { getHistoryList, type HistoryItem } from '../../common/api';
 	import { createThemeCssVars, getRuntimeThemePalette, type ThemePalette } from '../../common/theme';
 	import CustomNavBar from '../../components/CustomNavBar.vue';
@@ -218,8 +218,11 @@
 
 	onLoad(() => {
 		syncTheme();
-		getSystemInfo();
 		fetchHistory();
+	});
+
+	onReady(() => {
+		getSystemInfo();
 	});
 
 	onShow(() => {
@@ -366,13 +369,13 @@
 	.search-input {
 		flex: 1;
 		height: 60rpx;
-		font-size: 28rpx;
+		font-size: var(--font-rpx-md);
 		margin-left: 10rpx;
 	}
 
 	.search-action {
 		margin-left: 16rpx;
-		font-size: 24rpx;
+		font-size: var(--font-rpx-xs);
 		color: var(--accent);
 	}
 
@@ -387,7 +390,7 @@
 	.filter-item {
 		display: flex;
 		align-items: center;
-		font-size: 26rpx;
+		font-size: var(--font-rpx-sm);
 		color: var(--text-secondary);
 		padding: 10rpx 20rpx;
 		background-color: var(--surface-muted);
@@ -396,7 +399,7 @@
 
 	.filter-reset {
 		padding: 10rpx 20rpx;
-		font-size: 24rpx;
+		font-size: var(--font-rpx-xs);
 		color: var(--accent);
 		background-color: var(--accent-soft);
 		border-radius: 30rpx;
@@ -415,7 +418,7 @@
 
 	.group-title {
 		display: block;
-		font-size: 26rpx;
+		font-size: var(--font-rpx-sm);
 		color: var(--text-secondary);
 		margin: 30rpx 0 20rpx;
 	}
@@ -441,7 +444,7 @@
 		-webkit-line-clamp: 1;
 		-webkit-box-orient: vertical;
 		overflow: hidden;
-		font-size: 28rpx;
+		font-size: var(--font-rpx-md);
 		color: var(--text-primary);
 		margin-bottom: 10rpx;
 	}
@@ -452,7 +455,7 @@
 
 	.item-meta {
 		display: flex;
-		font-size: 24rpx;
+		font-size: var(--font-rpx-xs);
 		color: var(--text-secondary);
 	}
 
@@ -471,7 +474,7 @@
 
 	.name-item {
 		padding: 15rpx 0;
-		font-size: 28rpx;
+		font-size: var(--font-rpx-md);
 		color: var(--text-secondary);
 		border-bottom: 1rpx solid var(--border-color);
 	}
@@ -495,7 +498,7 @@
 	}
 
 	.empty-text {
-		font-size: 28rpx;
+		font-size: var(--font-rpx-md);
 		color: var(--text-secondary);
 		margin-bottom: 32rpx;
 		text-align: center;
@@ -507,7 +510,7 @@
 		width: 320rpx;
 		height: 80rpx;
 		line-height: 80rpx;
-		font-size: 32rpx;
+		font-size: var(--font-rpx-xl);
 		color: var(--accent-contrast);
 		background-color: var(--accent);
 		border-radius: 40rpx;
@@ -522,7 +525,7 @@
 
 	.load-more {
 		text-align: center;
-		font-size: 26rpx;
+		font-size: var(--font-rpx-sm);
 		color: var(--text-secondary);
 		padding: 30rpx 0;
 	}

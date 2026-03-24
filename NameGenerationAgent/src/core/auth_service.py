@@ -1,5 +1,5 @@
 """
-Authentication service backed by SQLAlchemy (MySQL in production).
+Authentication service backed by SQLAlchemy with SQLite persistence.
 """
 
 from __future__ import annotations
@@ -344,32 +344,10 @@ class AuthService:
             }
 
 
-def _is_sqlite_env() -> bool:
-    url = (os.getenv("DATABASE_URL") or "").strip().lower()
-    dialect = (os.getenv("DB_DIALECT") or "").strip().lower()
-    if url.startswith("sqlite:"):
-        return True
-    if dialect.startswith("sqlite"):
-        return True
-    return False
-
-
 def _build_default_auth_service() -> Optional[AuthService]:
     try:
         return AuthService()
     except Exception:
-        # Only fallback when sqlite is explicitly configured.
-        if _is_sqlite_env():
-            try:
-                root_dir = os.path.dirname(
-                    os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-                )
-                data_dir = os.path.join(root_dir, "data")
-                os.makedirs(data_dir, exist_ok=True)
-                fallback_db = os.path.join(data_dir, "auth_fallback.db")
-                return AuthService(db_url=f"sqlite:///{fallback_db}")
-            except Exception:
-                return None
         return None
 
 

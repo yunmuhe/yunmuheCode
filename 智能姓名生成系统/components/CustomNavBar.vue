@@ -19,8 +19,9 @@
 </template>
 
 <script lang="ts" setup>
-import { computed, onMounted, onUnmounted, ref, useSlots } from 'vue';
+import { computed, nextTick, onMounted, onUnmounted, ref, useSlots, watch } from 'vue';
 import { createThemeCssVars, getRuntimeThemePalette, type ThemePalette } from '../common/theme';
+import { syncH5PageTitle } from '../common/pageTitle';
 import uniIcons from '@/uni_modules/uni-icons/components/uni-icons/uni-icons.vue';
 
 type FallbackMode = 'navigateTo' | 'reLaunch';
@@ -48,12 +49,34 @@ const syncTheme = () => {
 	themePalette.value = getRuntimeThemePalette();
 };
 
+const syncTitle = (title: string) => {
+	syncH5PageTitle(title);
+
+	if (typeof window === 'undefined') {
+		return;
+	}
+
+	nextTick(() => {
+		syncH5PageTitle(title);
+		window.setTimeout(() => syncH5PageTitle(title), 0);
+	});
+};
+
 onMounted(() => {
 	syncTheme();
+	syncTitle(props.title);
 	if (typeof uni.$on === 'function') {
 		uni.$on('theme-changed', syncTheme);
 	}
 });
+
+watch(
+	() => props.title,
+	(title) => {
+		syncTitle(title);
+	},
+	{ immediate: true, flush: 'post' },
+);
 
 onUnmounted(() => {
 	if (typeof uni.$off === 'function') {
@@ -122,7 +145,7 @@ const handleBack = () => {
 
 .custom-nav-bar__title {
 	flex: 1;
-	font-size: 16px;
+	font-size: var(--font-px-lg);
 	font-weight: bold;
 	color: var(--text-primary);
 	text-align: center;
