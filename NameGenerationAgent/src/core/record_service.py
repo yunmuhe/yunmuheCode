@@ -245,22 +245,7 @@ def _build_default_record_service() -> Optional[RecordService]:
     try:
         return RecordService()
     except Exception:
-        import os
-
-        url = (os.getenv("DATABASE_URL") or "").strip().lower()
-        dialect = (os.getenv("DB_DIALECT") or "").strip().lower()
-        if url.startswith("sqlite:") or dialect.startswith("sqlite"):
-            try:
-                root_dir = os.path.dirname(
-                    os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-                )
-                data_dir = os.path.join(root_dir, "data")
-                os.makedirs(data_dir, exist_ok=True)
-                fallback_db = os.path.join(data_dir, "auth_fallback.db")
-                return RecordService(db_url=f"sqlite:///{fallback_db}")
-            except Exception:
-                return None
-        raise
+        return None
 
 
 record_service = _build_default_record_service()

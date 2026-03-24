@@ -52,15 +52,35 @@ import { ref } from 'vue';
 import { onShow } from '@dcloudio/uni-app';
 import { getAuthUser, fetchBackendStats, getHistoryList, getFavorites } from '../../common/api';
 
+type PageKey = 'generate' | 'history' | 'favorites' | 'settings';
+
+interface HomeStats {
+    generated: number;
+    favorites: number;
+    today: number;
+}
+
+interface ExamplePreset {
+    text: string;
+    category: 'ancient' | 'fantasy' | 'modern' | 'sci-fi' | 'martial';
+}
+
+const pageMap: Record<PageKey, string> = {
+    generate: '/pages/Generate/Generate',
+    history: '/pages/History/History',
+    favorites: '/pages/Favorites/Favorites',
+    settings: '/pages/Settings/Settings',
+};
+
 const isLoggedIn = ref(false);
-const stats = ref({
+const stats = ref<HomeStats>({
     generated: 0,
     favorites: 0,
     today: 0,
 });
 const isLoadingStats = ref(false);
 let latestStatsRequestId = 0;
-const examples = ref([
+const examples = ref<ExamplePreset[]>([
     { text: "古代文人雅士", category: "ancient" },
     { text: "奇幻世界魔法师", category: "fantasy" },
     { text: "现代科技公司CEO", category: "modern" },
@@ -95,7 +115,7 @@ const loadStats = async () => {
 
 	isLoadingStats.value = true;
 	const requestId = ++latestStatsRequestId;
-	const nextStats = {
+	const nextStats: HomeStats = {
 		generated: 0,
 		favorites: 0,
 		today: 0,
@@ -140,20 +160,13 @@ onShow(() => {
 	loadStats();
 });
 
-const navigateTo = (page: string) => {
-	const pageMap: Record<string, string> = {
-		'generate': '/pages/Generate/Generate',
-		'history': '/pages/History/History',
-		'favorites': '/pages/Favorites/Favorites',
-		'settings': '/pages/Settings/Settings'
-	};
-
+const navigateTo = (page: PageKey) => {
     const url = pageMap[page];
     if (url) {
         uni.navigateTo({ url });
     }
 };
-const fillExample = (example: { text: string }) => {
+const fillExample = (example: ExamplePreset) => {
     uni.navigateTo({
         url: `/pages/Generate/Generate?preset=${encodeURIComponent(example.text)}`,
     });
@@ -187,14 +200,14 @@ page {
 }
 
 .title {
-    font-size: 48rpx;
+    font-size: var(--font-rpx-4xl);
     font-weight: bold;
     color: #2c3e50;
     margin-bottom: 10rpx;
 }
 
 .subtitle {
-    font-size: 28rpx;
+    font-size: var(--font-rpx-md);
     color: #7f8c8d;
 }
 
@@ -231,7 +244,7 @@ page {
 }
 
 .label {
-    font-size: 32rpx;
+    font-size: var(--font-rpx-xl);
     color: #2c3e50;
     font-weight: 500;
 }
@@ -257,7 +270,7 @@ page {
 }
 
 .example-text {
-    font-size: 26rpx;
+    font-size: var(--font-rpx-sm);
     color: #34495e;
     white-space: nowrap;
     overflow: hidden;
@@ -280,14 +293,66 @@ page {
 }
 
 .stat-number {
-    font-size: 40rpx;
+    font-size: var(--font-rpx-2xl);
     font-weight: bold;
     color: #3498db;
     margin-bottom: 10rpx;
 }
 
 .stat-label {
-    font-size: 24rpx;
+    font-size: var(--font-rpx-xs);
     color: #7f8c8d;
+}
+
+@media screen and (max-width: 420px) {
+    .container {
+        padding: 28rpx 24rpx 36rpx;
+    }
+
+    .header {
+        margin-bottom: 44rpx;
+    }
+
+    .logo {
+        width: 132rpx;
+        height: 132rpx;
+    }
+
+    .title {
+        font-size: var(--font-rpx-3xl);
+    }
+
+    .subtitle {
+        font-size: var(--font-rpx-xs);
+    }
+
+    .grid-container {
+        gap: 22rpx;
+        margin-bottom: 38rpx;
+    }
+
+    .grid-item {
+        padding: 28rpx 16rpx;
+        border-radius: 18rpx;
+    }
+
+    .icon {
+        width: 96rpx;
+        height: 96rpx;
+        margin-bottom: 16rpx;
+    }
+
+    .label {
+        font-size: var(--font-rpx-md);
+    }
+
+    .examples-container {
+        margin-bottom: 38rpx;
+    }
+
+    .example-card {
+        min-width: 176rpx;
+        padding: 22rpx 28rpx;
+    }
 }
 </style>

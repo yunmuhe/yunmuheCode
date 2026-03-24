@@ -9,8 +9,9 @@
     "build": "set UNI_INPUT_DIR=.&& uni build -p h5",
     "build:h5": "set UNI_INPUT_DIR=.&& uni build -p h5",
     "build:mp-weixin": "set UNI_INPUT_DIR=.&& uni build -p mp-weixin",
-    "test:theme": "tsx common/theme.test.ts",
-    "test:phone-mask": "tsx common/phoneMask.test.ts"
+    "test:theme": "tsx tests/theme.test.ts",
+    "test:phone-mask": "tsx tests/phoneMask.test.ts",
+    "test:settings": "tsx tests/appSettings.test.mts"
   },
   "dependencies": {
     "@dcloudio/uni-app": "3.0.0-5000420260318001",

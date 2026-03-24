@@ -15,24 +15,29 @@ Base = declarative_base()
 _ENGINE_CACHE = {}
 
 
+def get_default_sqlite_path() -> str:
+    project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    data_dir = os.path.join(project_root, "data")
+    os.makedirs(data_dir, exist_ok=True)
+
+    configured_path = (os.getenv("SQLITE_DATABASE_PATH") or "").strip()
+    if configured_path:
+        return (
+            configured_path
+            if os.path.isabs(configured_path)
+            else os.path.join(project_root, configured_path)
+        )
+
+    return os.path.join(data_dir, "name_generation_agent.db")
+
+
 def build_database_url() -> str:
     explicit = (os.getenv("DATABASE_URL") or "").strip()
-    if explicit:
+    if explicit.lower().startswith("sqlite:"):
         return explicit
 
-    dialect = os.getenv("DB_DIALECT", "mysql+pymysql")
-    # For ops/debugging only; SQLAlchemy URL does not require this label.
-    _connection_name = os.getenv("MYSQL_CONNECTION_NAME", "name_agent_mysql")
-    host = os.getenv("MYSQL_HOST", "127.0.0.1")
-    port = os.getenv("MYSQL_PORT", "3306")
-    user = os.getenv("MYSQL_USER", "name_agent_app")
-    password = os.getenv("MYSQL_PASSWORD", "")
-    database = os.getenv("MYSQL_DATABASE", "name_generation_agent")
-
-    if dialect.startswith("sqlite"):
-        return f"sqlite:///{database}"
-
-    return f"{dialect}://{user}:{password}@{host}:{port}/{database}?charset=utf8mb4"
+    sqlite_path = get_default_sqlite_path()
+    return f"sqlite:///{sqlite_path}"
 
 
 def get_engine(db_url: Optional[str] = None):

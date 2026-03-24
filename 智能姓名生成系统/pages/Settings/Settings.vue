@@ -34,34 +34,23 @@
             <text class="group-title">智能体连接</text>
             <view class="settings-item">
                 <text class="item-label">当前地址</text>
-                <text
-                    class="item-value"
-                    style="font-size: 24rpx; word-break: break-all"
-                    >{{ apiBaseUrl }}</text>
+                <view class="settings-action settings-action--address">
+                    <text class="item-value item-value--address">{{ apiBaseUrl }}</text>
+                </view>
             </view>
-            <view class="settings-item">
+            <view class="settings-item settings-item--stacked-mobile">
                 <text class="item-label">连接状态</text>
-                <view style="display: flex; align-items: center">
+                <view class="settings-action">
                     <view
-                        :style="{
-                            width: '14rpx',
-                            height: '14rpx',
-                            borderRadius: '50%',
-                            backgroundColor: health.ok ? themePalette.success : themePalette.danger,
-                            marginRight: '12rpx',
-                        }"
+                        class="status-dot"
+                        :style="{ backgroundColor: health.ok ? themePalette.success : themePalette.danger }"
                     ></view>
                     <text class="item-value">{{
                         health.ok ? "已连接" : "未连接"
                     }}</text>
-                    <text
-                        v-if="health.version"
-                        :style="{ marginLeft: '12rpx', color: themePalette.textSecondary }"
-                        >v{{ health.version }}</text
-                    >
+                    <text v-if="health.version" class="status-version">v{{ health.version }}</text>
                     <button
                         class="stats-btn"
-                        style="margin-left: 16rpx"
                         size="mini"
                         @click="refreshHealth"
                         :disabled="health.loading"
@@ -77,41 +66,55 @@
             <text class="group-title">偏好设置</text>
             <view class="settings-item">
                 <text class="item-label">默认生成数量</text>
-                <uni-number-box
-                    v-model="settings.generateCount"
-                    :min="1"
-                    :max="10"
-                    @change="handleGenerateCountChange"
-                />
+                <view class="settings-action">
+                    <uni-number-box
+                        v-model="settings.generateCount"
+                        :min="1"
+                        :max="10"
+                        @change="handleGenerateCountChange"
+                    />
+                </view>
             </view>
             <view class="settings-item" v-if="apiOptions.length">
                 <text class="item-label">默认API提供商</text>
-                <picker
-                    mode="selector"
-                    :range="apiOptionLabels"
-                    :value="apiIndex"
-                    @change="handleApiChange"
-                >
-                    <view class="picker-value">{{
-                        apiOptionLabels[apiIndex]
-                    }}</view>
-                </picker>
+                <view class="settings-action">
+                    <picker
+                        mode="selector"
+                        :range="apiOptionLabels"
+                        :value="apiIndex"
+                        @change="handleApiChange"
+                    >
+                        <view class="picker-value">{{
+                            apiOptionLabels[apiIndex]
+                        }}</view>
+                    </picker>
+                </view>
             </view>
             <view class="settings-item">
                 <text class="item-label">默认风格偏好</text>
-                <uni-segmented-control
-                    :current="styleIndex"
-                    :values="styles"
-                    @clickItem="handleStyleChange"
-                />
+                <view class="settings-action">
+                    <picker
+                        mode="selector"
+                        :range="styleOptionLabels"
+                        :value="styleIndex"
+                        @change="handleStyleChange"
+                    >
+                        <view class="picker-value">
+                            {{ getStyleLabel(settings.stylePreference) }}
+                            <text class="item-arrow">&gt;</text>
+                        </view>
+                    </picker>
+                </view>
             </view>
             <view class="settings-item">
                 <text class="item-label">自动复制结果</text>
-                <switch
-                    :checked="settings.autoCopy"
-                    @change="handleAutoCopyChange"
-                    :color="themePalette.accent"
-                />
+                <view class="settings-action">
+                    <switch
+                        :checked="settings.autoCopy"
+                        @change="handleAutoCopyChange"
+                        :color="themePalette.accent"
+                    />
+                </view>
             </view>
         </view>
 
@@ -120,43 +123,35 @@
             <text class="group-title">显示设置</text>
             <view class="settings-item">
                 <text class="item-label">主题模式</text>
-                <radio-group @change="handleThemeChange">
-                    <label
-                        class="radio-item"
-                        v-for="item in themes"
-                        :key="item.value"
+                <view class="settings-action">
+                    <picker
+                        mode="selector"
+                        :range="themeOptionLabels"
+                        :value="themeIndex"
+                        @change="handleThemeChange"
                     >
-                        <radio
-                            :value="item.value"
-                            :checked="settings.theme === item.value"
-                        />
-                        <text>{{ item.name }}</text>
-                    </label>
-                </radio-group>
-            </view>
-            <view class="settings-item">
-                <text class="item-label">字体大小</text>
-                <slider
-                    :value="fontSizeIndex"
-                    :min="0"
-                    :max="2"
-                    @change="handleFontSizeChange"
-                    :step="1"
-                    :activeColor="themePalette.accent"
-                />
-                <view class="slider-labels">
-                    <text>小</text>
-                    <text>中</text>
-                    <text>大</text>
+                        <view class="picker-value">
+                            {{ getThemeLabel(settings.theme) }}
+                            <text class="item-arrow">&gt;</text>
+                        </view>
+                    </picker>
                 </view>
             </view>
             <view class="settings-item">
-                <text class="item-label">动画效果</text>
-                <switch
-                    :checked="settings.animation"
-                    @change="handleAnimationChange"
-                    :color="themePalette.accent"
-                />
+                <text class="item-label">字体大小</text>
+                <view class="settings-action">
+                    <picker
+                        mode="selector"
+                        :range="fontSizeOptionLabels"
+                        :value="fontSizeIndex"
+                        @change="handleFontSizeChange"
+                    >
+                        <view class="picker-value">
+                            {{ getFontSizeLabel(settings.fontSize) }}
+                            <text class="item-arrow">&gt;</text>
+                        </view>
+                    </picker>
+                </view>
             </view>
         </view>
 
@@ -165,36 +160,42 @@
             <text class="group-title">存储设置</text>
             <view class="settings-item">
                 <text class="item-label">历史记录保留时间</text>
-                <picker
-                    mode="selector"
-                    :range="retentionTimes"
-                    :value="retentionIndex"
-                    @change="handleRetentionChange"
-                >
-                    <view class="picker-value">
-                        {{ retentionTimes[retentionIndex] }}
-                        <uni-icons type="arrowright" size="16" :color="themePalette.textSecondary" />
-                    </view>
-                </picker>
+                <view class="settings-action">
+                    <picker
+                        mode="selector"
+                        :range="retentionTimes"
+                        :value="retentionIndex"
+                        @change="handleRetentionChange"
+                    >
+                        <view class="picker-value">
+                            {{ retentionTimes[retentionIndex] }}
+                            <text class="item-arrow">&gt;</text>
+                        </view>
+                    </picker>
+                </view>
             </view>
             <view class="settings-item">
                 <text class="item-label">自动清理设置</text>
-                <switch
-                    :checked="settings.autoClean"
-                    @change="handleAutoCleanChange"
-                    :color="themePalette.accent"
-                />
+                <view class="settings-action">
+                    <switch
+                        :checked="settings.autoClean"
+                        @change="handleAutoCleanChange"
+                        :color="themePalette.accent"
+                    />
+                </view>
             </view>
             <view class="settings-item">
                 <text class="item-label">数据备份与恢复</text>
-                <button
-                    type="default"
-                    size="mini"
-                    @click="handleBackup"
-                    class="backup-btn"
-                >
-                    备份
-                </button>
+                <view class="settings-action">
+                    <button
+                        type="default"
+                        size="mini"
+                        @click="handleBackup"
+                        class="backup-btn"
+                    >
+                        备份
+                    </button>
+                </view>
             </view>
         </view>
 
@@ -209,57 +210,67 @@
             </view>
             <view class="settings-item" v-if="isLogin && userInfo.isAdmin">
                 <text class="item-label">后台管理</text>
-                <button
-                    type="default"
-                    size="mini"
-                    @click="goAdmin"
-                    class="stats-btn"
-                >
-                    进入
-                </button>
+                <view class="settings-action">
+                    <button
+                        type="default"
+                        size="mini"
+                        @click="goAdmin"
+                        class="stats-btn"
+                    >
+                        进入
+                    </button>
+                </view>
             </view>
             <view class="settings-item">
                 <text class="item-label">{{
                     isLogin ? "退出登录" : "账号登录"
                 }}</text>
-                <button
-                    type="default"
-                    size="mini"
-                    @click="isLogin ? handleLogout() : handleLogin()"
-                    class="clear-btn"
-                >
-                    {{ isLogin ? "退出" : "登录" }}
-                </button>
+                <view class="settings-action">
+                    <button
+                        type="default"
+                        size="mini"
+                        @click="isLogin ? handleLogout() : handleLogin()"
+                        class="clear-btn"
+                    >
+                        {{ isLogin ? "退出" : "登录" }}
+                    </button>
+                </view>
             </view>
             <view class="settings-item">
                 <text class="item-label">云端同步</text>
-                <switch
-                    :checked="settings.cloudSync"
-                    @change="handleCloudSyncChange"
-                    :color="themePalette.accent"
-                />
+                <view class="settings-action">
+                    <switch
+                        :checked="settings.cloudSync"
+                        @change="handleCloudSyncChange"
+                        :color="themePalette.accent"
+                    />
+                </view>
             </view>
             <view class="settings-item">
                 <text class="item-label">数据统计</text>
-                <button
-                    type="default"
-                    size="mini"
-                    @click="handleViewStats"
-                    class="stats-btn"
-                >
-                    查看
-                </button>
+                <view class="settings-action">
+                    <button
+                        type="default"
+                        size="mini"
+                        @click="handleViewStats"
+                        class="stats-btn"
+                    >
+                        查看
+                    </button>
+                </view>
             </view>
             <view class="settings-item">
                 <text class="item-label">清除缓存</text>
-                <button
-                    type="default"
-                    size="mini"
-                    @click="handleClearCache"
-                    class="clear-btn"
-                >
-                    清除
-                </button>
+                <view class="settings-action">
+                    <button
+                        type="default"
+                        size="mini"
+                        @click="handleClearCache"
+                        class="clear-btn"
+                    >
+                        清除
+                    </button>
+                </view>
             </view>
         </view>
 
@@ -272,19 +283,19 @@
             </view>
             <view class="settings-item" @click="handleUserAgreement">
                 <text class="item-label">用户协议</text>
-                <uni-icons type="arrowright" size="16" :color="themePalette.textSecondary" />
+                <text class="item-arrow">&gt;</text>
             </view>
             <view class="settings-item" @click="handlePrivacyPolicy">
                 <text class="item-label">隐私政策</text>
-                <uni-icons type="arrowright" size="16" :color="themePalette.textSecondary" />
+                <text class="item-arrow">&gt;</text>
             </view>
             <view class="settings-item" @click="handleFeedback">
                 <text class="item-label">反馈与帮助</text>
-                <uni-icons type="arrowright" size="16" :color="themePalette.textSecondary" />
+                <text class="item-arrow">&gt;</text>
             </view>
             <view class="settings-item" @click="handleShareApp">
                 <text class="item-label">分享应用</text>
-                <uni-icons type="arrowright" size="16" :color="themePalette.textSecondary" />
+                <text class="item-arrow">&gt;</text>
             </view>
         </view>
     </view>
@@ -306,44 +317,29 @@ import {
     type AuthUser,
     type BackendStats,
 } from "../../common/api";
-import { applyTheme, createThemeCssVars, getRuntimeThemePalette, getStoredTheme, ThemeMode, type ThemePalette } from "../../common/theme";
+import {
+    DEFAULT_SETTINGS,
+    FONT_SIZE_OPTIONS,
+    RETENTION_OPTIONS,
+    STYLE_OPTIONS,
+    THEME_OPTIONS,
+    getFontSizeLabel,
+    getStyleLabel,
+    getThemeLabel,
+    readSettings,
+    writeSettings,
+    type LocalSettings,
+} from "../../common/appSettings";
+import { applyFontScale, getStoredFontSize } from "../../common/fontScale";
+import { applyTheme, createThemeCssVars, getRuntimeThemePalette, getStoredTheme, type ThemePalette } from "../../common/theme";
 import { maskPhoneNumber } from "../../common/phoneMask";
 import CustomNavBar from "../../components/CustomNavBar.vue";
 import uniIcons from "@/uni_modules/uni-icons/components/uni-icons/uni-icons.vue";
 import uniNumberBox from "@/uni_modules/uni-number-box/components/uni-number-box/uni-number-box.vue";
-import uniSegmentedControl from "@/uni_modules/uni-segmented-control/components/uni-segmented-control/uni-segmented-control.vue";
-
-type LocalSettings = {
-    generateCount: number;
-    stylePreference: string;
-    autoCopy: boolean;
-    theme: ThemeMode;
-    fontSize: "small" | "medium" | "large";
-    animation: boolean;
-    retentionTime: string;
-    autoClean: boolean;
-    cloudSync: boolean;
-};
-
-interface SegmentedControlClickEvent {
-    currentIndex: number;
-}
 
 interface ToggleChangeEvent {
     detail: {
         value: boolean;
-    };
-}
-
-interface RadioGroupChangeEvent {
-    detail: {
-        value: string;
-    };
-}
-
-interface RangeChangeEvent {
-    detail: {
-        value: number;
     };
 }
 
@@ -356,25 +352,6 @@ interface PickerChangeEvent {
 interface ModalConfirmResult {
     confirm?: boolean;
 }
-
-const SETTINGS_STORAGE_KEY = "app_settings";
-const STYLE_OPTIONS = [
-    { label: "现代中文", value: "chinese_modern" },
-    { label: "传统中文", value: "chinese_traditional" },
-    { label: "奇幻风格", value: "fantasy" },
-];
-const STYLE_VALUES = STYLE_OPTIONS.map((item) => item.value);
-const DEFAULT_SETTINGS: LocalSettings = {
-    generateCount: 3,
-    stylePreference: "chinese_modern",
-    autoCopy: true,
-    theme: "light",
-    fontSize: "medium",
-    animation: true,
-    retentionTime: "30天",
-    autoClean: false,
-    cloudSync: true,
-};
 
 const isLogin = ref(false);
 const userInfo = reactive({
@@ -389,9 +366,6 @@ const maskedPhone = computed(() => maskPhoneNumber(userInfo.phone));
 const settings = reactive({
     ...DEFAULT_SETTINGS,
 });
-
-const styles = STYLE_OPTIONS.map((item) => item.label);
-const styleIndex = ref(0);
 
 // 接入后端：可用API与健康、统计
 const apiBaseUrl = getApiBaseUrl();
@@ -413,90 +387,41 @@ const apiOptionLabels = computed(() =>
 const health = ref({ ok: false, version: "", loading: false });
 const stats = ref<BackendStats | null>(null);
 
-const themes = [
-    { name: "浅色", value: "light" },
-    { name: "深色", value: "dark" },
-    { name: "自动", value: "auto" },
-];
-
-const fontSizes: LocalSettings["fontSize"][] = ["small", "medium", "large"];
-const fontSizeIndex = ref(1);
-
-const retentionTimes = ["7天", "30天", "永久"] as const;
+const retentionTimes = [...RETENTION_OPTIONS];
 const retentionIndex = ref(1);
+const styleOptionLabels = STYLE_OPTIONS.map((item) => item.label);
+const themeOptionLabels = THEME_OPTIONS.map((item) => item.label);
+const fontSizeOptionLabels = FONT_SIZE_OPTIONS.map((item) => item.label);
+const styleIndex = ref(0);
+const themeIndex = ref(0);
+const fontSizeIndex = ref(1);
 const themePalette = ref<ThemePalette>(getRuntimeThemePalette());
 const themeVars = computed(() => createThemeCssVars(themePalette.value));
-
 const syncTheme = () => {
     themePalette.value = getRuntimeThemePalette();
 };
 
 const persistSettings = () => {
-    try {
-        uni.setStorageSync(SETTINGS_STORAGE_KEY, { ...settings });
-    } catch (e) {}
+    writeSettings({ ...settings });
 };
 
 const restoreSettings = () => {
-    try {
-        const stored = uni.getStorageSync(SETTINGS_STORAGE_KEY);
-        if (!stored || typeof stored !== "object") {
-            return;
-        }
-        const settingsRecord = stored as Partial<Record<keyof LocalSettings, unknown>>;
-
-        settings.generateCount =
-            typeof settingsRecord.generateCount === "number"
-                ? Math.min(10, Math.max(1, settingsRecord.generateCount))
-                : DEFAULT_SETTINGS.generateCount;
-        settings.stylePreference =
-            typeof settingsRecord.stylePreference === "string" &&
-            STYLE_VALUES.includes(settingsRecord.stylePreference)
-            ? settingsRecord.stylePreference
-            : DEFAULT_SETTINGS.stylePreference;
-        settings.autoCopy =
-            typeof settingsRecord.autoCopy === "boolean"
-                ? settingsRecord.autoCopy
-                : DEFAULT_SETTINGS.autoCopy;
-        settings.theme =
-            settingsRecord.theme === "light" ||
-            settingsRecord.theme === "dark" ||
-            settingsRecord.theme === "auto"
-                ? settingsRecord.theme
-                : DEFAULT_SETTINGS.theme;
-        settings.fontSize =
-            settingsRecord.fontSize === "small" ||
-            settingsRecord.fontSize === "medium" ||
-            settingsRecord.fontSize === "large"
-            ? settingsRecord.fontSize
-            : DEFAULT_SETTINGS.fontSize;
-        settings.animation =
-            typeof settingsRecord.animation === "boolean"
-                ? settingsRecord.animation
-                : DEFAULT_SETTINGS.animation;
-        settings.retentionTime =
-            settingsRecord.retentionTime === "7天" ||
-            settingsRecord.retentionTime === "30天" ||
-            settingsRecord.retentionTime === "永久"
-            ? settingsRecord.retentionTime
-            : DEFAULT_SETTINGS.retentionTime;
-        settings.autoClean =
-            typeof settingsRecord.autoClean === "boolean"
-                ? settingsRecord.autoClean
-                : DEFAULT_SETTINGS.autoClean;
-        settings.cloudSync =
-            typeof settingsRecord.cloudSync === "boolean"
-                ? settingsRecord.cloudSync
-                : DEFAULT_SETTINGS.cloudSync;
-    } catch (e) {}
+    Object.assign(settings, readSettings());
 };
 
 const syncUiStateFromSettings = () => {
     styleIndex.value = Math.max(
         0,
-        STYLE_VALUES.indexOf(settings.stylePreference),
+        STYLE_OPTIONS.findIndex((item) => item.value === settings.stylePreference),
     );
-    fontSizeIndex.value = Math.max(0, fontSizes.indexOf(settings.fontSize));
+    themeIndex.value = Math.max(
+        0,
+        THEME_OPTIONS.findIndex((item) => item.value === settings.theme),
+    );
+    fontSizeIndex.value = Math.max(
+        0,
+        FONT_SIZE_OPTIONS.findIndex((item) => item.value === settings.fontSize),
+    );
     retentionIndex.value = Math.max(
         0,
         retentionTimes.indexOf(settings.retentionTime),
@@ -547,13 +472,6 @@ const syncAuthState = async () => {
     applyAuthUser(null);
 };
 
-const handleStyleChange = (e: SegmentedControlClickEvent) => {
-    styleIndex.value = e.currentIndex;
-    settings.stylePreference =
-        STYLE_VALUES[e.currentIndex] || DEFAULT_SETTINGS.stylePreference;
-    persistSettings();
-};
-
 const handleGenerateCountChange = (value: number | { value?: number }) => {
     const nextValue =
         typeof value === "number" ? value : Number(value?.value ?? settings.generateCount);
@@ -573,23 +491,32 @@ const syncThemeFromStorage = () => {
     syncTheme();
 };
 
-const handleThemeChange = (e: RadioGroupChangeEvent) => {
-    const value = (e?.detail?.value ?? "light") as ThemeMode;
-    settings.theme = value;
-    applyTheme(value);
+const syncFontScaleFromStorage = () => {
+    settings.fontSize = getStoredFontSize();
+    applyFontScale(settings.fontSize);
+};
+
+const handleStyleChange = (e: PickerChangeEvent) => {
+    styleIndex.value = Number(e.detail.value) || 0;
+    settings.stylePreference =
+        STYLE_OPTIONS[styleIndex.value]?.value || DEFAULT_SETTINGS.stylePreference;
+    persistSettings();
+};
+
+const handleThemeChange = (e: PickerChangeEvent) => {
+    themeIndex.value = Number(e.detail.value) || 0;
+    settings.theme = THEME_OPTIONS[themeIndex.value]?.value || DEFAULT_SETTINGS.theme;
+    persistSettings();
+    applyTheme(settings.theme);
     syncTheme();
-    persistSettings();
 };
 
-const handleFontSizeChange = (e: RangeChangeEvent) => {
-    fontSizeIndex.value = e.detail.value;
-    settings.fontSize = fontSizes[e.detail.value] || DEFAULT_SETTINGS.fontSize;
+const handleFontSizeChange = (e: PickerChangeEvent) => {
+    fontSizeIndex.value = Number(e.detail.value) || 0;
+    settings.fontSize =
+        FONT_SIZE_OPTIONS[fontSizeIndex.value]?.value || DEFAULT_SETTINGS.fontSize;
     persistSettings();
-};
-
-const handleAnimationChange = (e: ToggleChangeEvent) => {
-    settings.animation = e.detail.value;
-    persistSettings();
+    applyFontScale(settings.fontSize);
 };
 
 const handleRetentionChange = (e: PickerChangeEvent) => {
@@ -758,6 +685,7 @@ onLoad(() => {
     restoreSettings();
     syncUiStateFromSettings();
     syncThemeFromStorage();
+    syncFontScaleFromStorage();
     syncAuthState();
     loadOptions();
     loadStats();
@@ -765,7 +693,10 @@ onLoad(() => {
 });
 
 onShow(() => {
-    syncTheme();
+    restoreSettings();
+    syncUiStateFromSettings();
+    syncThemeFromStorage();
+    syncFontScaleFromStorage();
     syncAuthState();
 });
 
@@ -825,20 +756,20 @@ page {
 }
 
 .user-name {
-    font-size: 36rpx;
+    font-size: var(--font-rpx-2xl);
     font-weight: bold;
     color: var(--text-primary);
     margin-bottom: 10rpx;
 }
 
 .login-text {
-    font-size: 36rpx;
+    font-size: var(--font-rpx-2xl);
     color: var(--accent);
     font-weight: bold;
 }
 
 .vip-tag {
-    font-size: 24rpx;
+    font-size: var(--font-rpx-xs);
     color: var(--accent-contrast);
     background-color: var(--warning);
     padding: 4rpx 16rpx;
@@ -846,7 +777,7 @@ page {
 }
 
 .member-tag {
-    font-size: 24rpx;
+    font-size: var(--font-rpx-xs);
     color: var(--text-secondary);
     background-color: var(--surface-muted);
     padding: 4rpx 16rpx;
@@ -863,15 +794,16 @@ page {
 .group-title {
     display: block;
     padding: 24rpx 32rpx;
-    font-size: 28rpx;
+    font-size: var(--font-rpx-md);
     color: var(--text-secondary);
     background-color: var(--surface-soft);
 }
 
 .settings-item {
     display: flex;
-    justify-content: space-between;
     align-items: center;
+    gap: 24rpx;
+    flex-wrap: wrap;
     padding: 28rpx 32rpx;
     border-bottom: 1rpx solid var(--border-color);
 }
@@ -881,43 +813,89 @@ page {
 }
 
 .item-label {
-    font-size: 32rpx;
+    flex: 1 1 auto;
+    min-width: 0;
+    font-size: var(--font-rpx-xl);
     color: var(--text-primary);
 }
 
 .item-value {
-    font-size: 32rpx;
+    margin-left: auto;
+    font-size: var(--font-rpx-xl);
     color: var(--text-secondary);
+    text-align: right;
+}
+
+.item-value--address {
+    display: block;
+    width: 100%;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-size: var(--font-rpx-xs);
+}
+
+.settings-action {
+    margin-left: auto;
+    flex: 0 0 auto;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    align-self: center;
+    justify-content: flex-end;
+    gap: 12rpx;
+    text-align: right;
+}
+
+.settings-action--address {
+    flex: 1 1 0;
+    min-width: 0;
+    max-width: 420rpx;
+}
+
+.settings-item--stacked-mobile .item-label {
+    flex: 0 0 auto;
+    width: 100%;
+}
+
+.settings-item--stacked-mobile .item-value {
+    margin-left: 0;
+}
+
+.settings-item--stacked-mobile .settings-action {
+    align-self: stretch;
+}
+
+.status-dot {
+    width: 14rpx;
+    height: 14rpx;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.status-version {
+    margin-left: 4rpx;
+    color: var(--text-secondary);
+    font-size: var(--font-rpx-xs);
 }
 
 .picker-value {
     display: flex;
     align-items: center;
+    justify-content: flex-end;
+    gap: 10rpx;
+    font-size: var(--font-rpx-xl);
     color: var(--text-secondary);
 }
 
-.radio-item {
-    margin-right: 40rpx;
+.item-arrow {
     display: inline-flex;
     align-items: center;
-}
-
-.radio-item text {
-    margin-left: 10rpx;
-    font-size: 28rpx;
-    color: var(--text-primary);
-}
-
-.slider-labels {
-    display: flex;
-    justify-content: space-between;
-    width: 100%;
-    margin-top: 10rpx;
-}
-
-.slider-labels text {
-    font-size: 24rpx;
+    justify-content: center;
+    min-width: 18rpx;
     color: var(--text-secondary);
+    font-size: var(--font-rpx-lg);
+    line-height: 1;
 }
 
 .backup-btn,
@@ -931,6 +909,9 @@ page {
     padding: 0 24rpx;
     height: 56rpx;
     line-height: 56rpx;
+    min-width: 132rpx;
+    text-align: center;
+    font-size: var(--font-rpx-xs);
 }
 
 .config-btn.danger {
@@ -947,5 +928,48 @@ page {
 
 .config-btn.danger:active {
     background-color: var(--surface-muted);
+}
+
+@media screen and (max-width: 420px) {
+    .settings-item {
+        align-items: center;
+        flex-wrap: nowrap;
+    }
+
+    .settings-item > .item-label {
+        flex: 1 1 auto;
+        min-width: 0;
+    }
+
+    .settings-action {
+        width: auto;
+        flex: 0 0 auto;
+        min-width: max-content;
+        margin-left: auto;
+        align-items: center;
+        align-self: center;
+    }
+
+    .settings-action--address {
+        flex: 1 1 0;
+        min-width: 0;
+        max-width: 50%;
+    }
+
+    .settings-item--stacked-mobile {
+        flex-wrap: wrap;
+        align-items: flex-start;
+    }
+
+    .settings-item--stacked-mobile > .item-label {
+        flex: 0 0 100%;
+    }
+
+    .settings-item--stacked-mobile > .settings-action {
+        width: 100%;
+        flex: 0 0 100%;
+        margin-left: 0;
+        justify-content: flex-end;
+    }
 }
 </style>

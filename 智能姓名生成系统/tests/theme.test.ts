@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { createThemeCssVars } from './theme';
+import { createThemeCssVars } from '../common/theme';
 
 const vars = createThemeCssVars({
 	navFront: '#000000',

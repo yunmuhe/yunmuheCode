@@ -185,15 +185,48 @@ const request = <T>(options: RequestOptions): Promise<T> => {
   });
 };
 
+const isReadableErrorMessage = (error: string): boolean => {
+  const normalized = error.trim();
+  if (!normalized) {
+    return false;
+  }
+
+  return !/^[?？]+$/.test(normalized);
+};
+
+const getStatusCodeErrorMessage = (statusCode: number): string => {
+  if (statusCode === 400) {
+    return "请求参数不正确";
+  }
+
+  if (statusCode === 401) {
+    return "请先登录后再继续";
+  }
+
+  if (statusCode === 403) {
+    return "当前账号暂无权限执行此操作";
+  }
+
+  if (statusCode === 404) {
+    return "请求的资源不存在";
+  }
+
+  if (statusCode >= 500) {
+    return "服务暂时不可用，请稍后重试";
+  }
+
+  return `Request failed (${statusCode})`;
+};
+
 const getRequestErrorMessage = (data: unknown, statusCode: number): string => {
   if (typeof data === "object" && data !== null && "error" in data) {
     const error = data.error;
-    if (typeof error === "string" && error.trim()) {
+    if (typeof error === "string" && isReadableErrorMessage(error)) {
       return error;
     }
   }
 
-  return `Request failed (${statusCode})`;
+  return getStatusCodeErrorMessage(statusCode);
 };
 
 export const getApiBaseUrl = () => BASE_URL;

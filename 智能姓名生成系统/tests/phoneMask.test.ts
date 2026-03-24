@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { maskPhoneNumber } from './phoneMask';
+import { maskPhoneNumber } from '../common/phoneMask';
 
 assert.equal(maskPhoneNumber('13800138000'), '*******8000');
 assert.equal(maskPhoneNumber('1234567'), '*******');
