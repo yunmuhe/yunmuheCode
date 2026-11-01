@@ -1,6 +1,8 @@
 [Unit]
 Description=Name Generation Agent API Service
-Documentation=https://github.com/yourusername/nameagent
+Documentation=https://github.com/yunmuhe/yunmuheCode
+# 默认按 monorepo 布局编写：仓库根目录 /opt/yunmuheCode，后端位于 NameGenerationAgent/。
+# deploy_to_server.sh 会用实际的 APP_DIR 替换 /opt/yunmuheCode；手工部署到其他目录时请同步修改。
 After=network.target network-online.target
 Wants=network-online.target
 
@@ -8,12 +10,12 @@ Wants=network-online.target
 Type=simple
 User=root
 Group=root
-WorkingDirectory=/home/NameGenerationAgent
-Environment="PATH=/home/NameGenerationAgent/venv/bin:/usr/local/bin:/usr/bin:/bin"
+WorkingDirectory=/opt/yunmuheCode/NameGenerationAgent
+Environment="PATH=/opt/yunmuheCode/.venv/bin:/usr/local/bin:/usr/bin:/bin"
 Environment="PYTHONUNBUFFERED=1"
 
 # 启动命令
-ExecStart=/home/NameGenerationAgent/venv/bin/python /home/NameGenerationAgent/main.py
+ExecStart=/opt/yunmuheCode/.venv/bin/python /opt/yunmuheCode/NameGenerationAgent/main.py
 
 # 启动前检查（可选）
 # ExecStartPre=/bin/sleep 2
@@ -42,7 +44,7 @@ SyslogIdentifier=nameagent
 # PrivateTmp=true
 # ProtectSystem=strict
 # ProtectHome=true
-# ReadWritePaths=/home/NameGenerationAgent/data /home/NameGenerationAgent/logs
+# ReadWritePaths=/opt/yunmuheCode/NameGenerationAgent/data /opt/yunmuheCode/NameGenerationAgent/logs
 
 [Install]
 WantedBy=multi-user.target

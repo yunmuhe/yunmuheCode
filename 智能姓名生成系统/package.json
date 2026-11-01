@@ -3,12 +3,12 @@
   "version": "1.0.0",
   "description": "智能姓名生成系统",
   "scripts": {
-    "dev": "set UNI_INPUT_DIR=.&& uni -p h5",
-    "dev:h5": "set UNI_INPUT_DIR=.&& uni -p h5",
-    "dev:mp-weixin": "set UNI_INPUT_DIR=.&& uni -p mp-weixin",
-    "build": "set UNI_INPUT_DIR=.&& uni build -p h5",
-    "build:h5": "set UNI_INPUT_DIR=.&& uni build -p h5",
-    "build:mp-weixin": "set UNI_INPUT_DIR=.&& uni build -p mp-weixin",
+    "dev": "cross-env UNI_INPUT_DIR=. uni -p h5",
+    "dev:h5": "cross-env UNI_INPUT_DIR=. uni -p h5",
+    "dev:mp-weixin": "cross-env UNI_INPUT_DIR=. uni -p mp-weixin",
+    "build": "cross-env UNI_INPUT_DIR=. uni build -p h5",
+    "build:h5": "cross-env UNI_INPUT_DIR=. uni build -p h5",
+    "build:mp-weixin": "cross-env UNI_INPUT_DIR=. uni build -p mp-weixin",
     "test:theme": "tsx tests/theme.test.ts",
     "test:phone-mask": "tsx tests/phoneMask.test.ts",
     "test:settings": "tsx tests/appSettings.test.mts"
@@ -24,6 +24,7 @@
     "@dcloudio/uni-cli-shared": "3.0.0-5000420260318001",
     "@dcloudio/uni-stacktracey": "3.0.0-5000420260318001",
     "@dcloudio/vite-plugin-uni": "3.0.0-5000420260318001",
+    "cross-env": "^7.0.3",
     "tsx": "^4.20.6",
     "vite": "5.2.8"
   },

@@ -27,7 +27,7 @@ npm run test:phone-mask
 npm run test:settings
 ```
 
-`npm run dev` 启动本地开发服务，`npm run build` 生成发布产物。原有 npm 脚本使用 Windows 风格的 `set VAR=...` 写法，非 Windows 环境可在命令前显式设置 `UNI_INPUT_DIR=.`（例如 `UNI_INPUT_DIR=. npx uni build -p h5`）。
+`npm run dev` 启动本地开发服务，`npm run build` 生成发布产物。npm 脚本通过 `cross-env` 设置 `UNI_INPUT_DIR`，Windows / Linux / macOS 下命令一致。
 
 ## 代码风格与命名规范
 Python 统一使用 4 空格缩进，函数与变量使用 `snake_case`，类名使用 `PascalCase`，异常优先复用现有 `APIException`。前端沿用现有 uni-app / Vue 3 写法，页面目录名、路由名和文件名保持一致，避免无意义缩写。修改日志相关逻辑时，优先复用后端现有日志工具，不要自行分散打印方式。
