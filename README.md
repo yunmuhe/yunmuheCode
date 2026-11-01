@@ -80,7 +80,7 @@ npm run dev:h5
 npm run dev:mp-weixin
 ```
 
-前端 npm 脚本目前使用 Windows 风格的环境变量写法（`set UNI_INPUT_DIR=...`）。在 Linux / macOS 下可改用 `UNI_INPUT_DIR=. npx uni <command>`，例如 `UNI_INPUT_DIR=. npx uni build -p h5`；后续可考虑引入 `cross-env` 统一两端的写法。
+前端 npm 脚本通过 `cross-env` 设置 `UNI_INPUT_DIR`，Windows / Linux / macOS 下均可直接使用上面的命令。
 
 ## 开发与协作约定
 
@@ -291,21 +291,28 @@ python scripts/migrate_auth_sqlite_to_mysql.py \
 
 ```bash
 cd NameGenerationAgent
-Get-Content .\logs\app.log -Wait -Tail 50
-Get-Content .\logs\app.log -Wait -Tail 50 | Select-String -Pattern "ERROR|WARNING"
+Get-Content .\data\app.log -Wait -Tail 50
+Get-Content .\data\app.log -Wait -Tail 50 | Select-String -Pattern "ERROR|WARNING"
 ```
 
 ## 部署与性能
 
-本仓库保留的部署入口：
+本仓库的部署产物位于 `NameGenerationAgent/deploy/`，均按当前 monorepo 布局编写：
 
 - 服务器部署脚本：`NameGenerationAgent/deploy/deploy_to_server.sh`
 - systemd 服务模板：`NameGenerationAgent/deploy/nameagent.service`
 - Nginx 反向代理模板：`NameGenerationAgent/deploy/nginx_config_template.conf`
 
-早期用于 Windows 本地启动、natapp 内网穿透和域名配置的 `.bat` 辅助脚本已从仓库移除，可从 git 历史恢复：`git log --all -- 'NameGenerationAgent/*.bat'`。本地启动统一使用上面的跨平台命令。
+默认布局：仓库根目录 `/opt/yunmuheCode`，后端位于 `$APP_DIR/NameGenerationAgent`，虚拟环境位于 `$APP_DIR/.venv`，环境变量文件为 `NameGenerationAgent/.env`。可以在执行时覆盖默认值：
 
-注意：`deploy_to_server.sh` 与 `nameagent.service` 仍按“仓库根目录即后端目录”的旧布局编写（`APP_DIR=/home/NameGenerationAgent`、`requirements.txt` 位于根目录），实际部署到当前 monorepo 布局时需要相应调整路径。
+```bash
+sudo APP_DIR=/opt/yunmuheCode DOMAIN_NAME=api.example.com \
+  bash NameGenerationAgent/deploy/deploy_to_server.sh
+```
+
+脚本会克隆/更新仓库、创建虚拟环境、从 `NameGenerationAgent/.env.example` 初始化 `.env`、安装 systemd 服务并配置 Nginx；手工部署到其他目录时，请同步修改 `nameagent.service` 中默认的 `/opt/yunmuheCode` 路径。
+
+早期用于 Windows 本地启动、natapp 内网穿透和域名配置的 `.bat` 辅助脚本已从仓库移除，可从 git 历史恢复：`git log --all -- 'NameGenerationAgent/*.bat'`。本地启动统一使用上面的跨平台命令。
 
 性能侧重点：
 

@@ -1,10 +1,13 @@
 #!/bin/bash
 
-# 姓名生成API服务 - 云服务器部署脚本
+# 姓名生成API服务 - 云服务器部署脚本（monorepo 布局）
 # 使用方法：
-# 1. 将此脚本上传到服务器
-# 2. 赋予执行权限: chmod +x deploy_to_server.sh
-# 3. 以root身份执行: sudo ./deploy_to_server.sh
+# 1. 在服务器上克隆本仓库，或上传本脚本
+# 2. 以 root 身份执行（在仓库根目录或任意位置均可）：
+#      sudo bash NameGenerationAgent/deploy/deploy_to_server.sh
+#    默认仓库根目录为 /opt/yunmuheCode，后端位于 $APP_DIR/NameGenerationAgent；
+#    可用环境变量覆盖默认值，例如：
+#      sudo APP_DIR=/opt/yunmuheCode DOMAIN_NAME=api.example.com bash NameGenerationAgent/deploy/deploy_to_server.sh
 
 set -e  # 遇到错误立即退出
 
@@ -32,11 +35,13 @@ fi
 echo -e "${GREEN}检测到系统: $OS $VER${NC}"
 echo ""
 
-# 配置变量（请根据实际情况修改）
+# 配置变量（可用同名环境变量覆盖默认值）
 APP_NAME="nameagent"
-APP_DIR="/home/NameGenerationAgent"
-DOMAIN_NAME="api.yourdomain.com"  # 修改为你的域名
-REPO_URL="https://github.com/yourusername/nameagent.git"  # 修改为你的Git仓库
+APP_DIR="${APP_DIR:-/opt/yunmuheCode}"          # monorepo 仓库根目录
+BACKEND_DIR="$APP_DIR/NameGenerationAgent"     # Python 后端目录
+VENV_DIR="$APP_DIR/.venv"                      # 虚拟环境目录
+DOMAIN_NAME="${DOMAIN_NAME:-api.yourdomain.com}"  # 修改为你的域名
+REPO_URL="${REPO_URL:-https://github.com/yunmuhe/yunmuheCode.git}"  # 修改为你的Git仓库
 
 # 检查是否为root用户
 if [ "$EUID" -ne 0 ]; then
@@ -64,34 +69,38 @@ echo ""
 echo -e "${YELLOW}[2/8] 部署应用代码...${NC}"
 if [ -d "$APP_DIR" ]; then
     echo "目录已存在，拉取最新代码..."
-    cd $APP_DIR
+    cd "$APP_DIR"
     git pull
 else
     echo "克隆代码仓库..."
-    git clone $REPO_URL $APP_DIR
-    cd $APP_DIR
+    git clone "$REPO_URL" "$APP_DIR"
+    cd "$APP_DIR"
+fi
+if [ ! -d "$BACKEND_DIR" ]; then
+    echo -e "${RED}错误: 未找到后端目录 $BACKEND_DIR${NC}"
+    exit 1
 fi
 echo -e "${GREEN}✓ 代码部署完成${NC}"
 echo ""
 
 # 步骤3：配置Python虚拟环境
 echo -e "${YELLOW}[3/8] 配置Python环境...${NC}"
-if [ ! -d "$APP_DIR/venv" ]; then
-    python3 -m venv venv
+if [ ! -d "$VENV_DIR" ]; then
+    python3 -m venv "$VENV_DIR"
 fi
-source venv/bin/activate
+source "$VENV_DIR/bin/activate"
 pip install --upgrade pip
-pip install -r requirements.txt
+pip install -r "$BACKEND_DIR/requirements.txt"
 echo -e "${GREEN}✓ Python环境配置完成${NC}"
 echo ""
 
 # 步骤4：配置环境变量
 echo -e "${YELLOW}[4/8] 配置环境变量...${NC}"
-if [ ! -f "$APP_DIR/.env" ]; then
-    if [ -f "$APP_DIR/.env.example" ]; then
-        cp $APP_DIR/.env.example $APP_DIR/.env
+if [ ! -f "$BACKEND_DIR/.env" ]; then
+    if [ -f "$BACKEND_DIR/.env.example" ]; then
+        cp "$BACKEND_DIR/.env.example" "$BACKEND_DIR/.env"
     else
-        cat > $APP_DIR/.env << EOF
+        cat > "$BACKEND_DIR/.env" << EOF
 # API配置（请修改为实际的API密钥）
 PAIOU_API_KEY=sk_your_key_here
 AISTUDIO_API_KEY=your_key_here
@@ -105,8 +114,8 @@ DEBUG=False
 LOG_LEVEL=INFO
 EOF
     fi
-    echo -e "${YELLOW}警告: 请编辑 $APP_DIR/.env 文件配置API密钥${NC}"
-    echo "使用命令: nano $APP_DIR/.env"
+    echo -e "${YELLOW}警告: 请编辑 $BACKEND_DIR/.env 文件配置API密钥${NC}"
+    echo "使用命令: nano $BACKEND_DIR/.env"
     read -p "按Enter继续..."
 fi
 echo -e "${GREEN}✓ 环境变量配置完成${NC}"
@@ -114,10 +123,10 @@ echo ""
 
 # 步骤5：配置systemd服务
 echo -e "${YELLOW}[5/8] 配置systemd服务...${NC}"
-if [ -f "$APP_DIR/deploy/nameagent.service" ]; then
-    cp $APP_DIR/deploy/nameagent.service /etc/systemd/system/
+if [ -f "$BACKEND_DIR/deploy/nameagent.service" ]; then
+    sed "s|/opt/yunmuheCode|$APP_DIR|g" "$BACKEND_DIR/deploy/nameagent.service" > "/etc/systemd/system/$APP_NAME.service"
 else
-    cat > /etc/systemd/system/nameagent.service << 'EOF'
+    cat > "/etc/systemd/system/$APP_NAME.service" << EOF
 [Unit]
 Description=Name Generation Agent API Service
 After=network.target
@@ -125,9 +134,9 @@ After=network.target
 [Service]
 Type=simple
 User=root
-WorkingDirectory=/home/NameGenerationAgent
-Environment="PATH=/home/NameGenerationAgent/venv/bin"
-ExecStart=/home/NameGenerationAgent/venv/bin/python main.py
+WorkingDirectory=$BACKEND_DIR
+Environment="PATH=$VENV_DIR/bin:/usr/local/bin:/usr/bin:/bin"
+ExecStart=$VENV_DIR/bin/python $BACKEND_DIR/main.py
 Restart=always
 RestartSec=10
 
@@ -152,8 +161,8 @@ echo ""
 
 # 步骤6：配置Nginx
 echo -e "${YELLOW}[6/8] 配置Nginx反向代理...${NC}"
-if [ -f "$APP_DIR/deploy/nginx_config_template.conf" ]; then
-    sed "s/api.yourdomain.com/$DOMAIN_NAME/g" $APP_DIR/deploy/nginx_config_template.conf > /etc/nginx/sites-available/$APP_NAME
+if [ -f "$BACKEND_DIR/deploy/nginx_config_template.conf" ]; then
+    sed "s/api.yourdomain.com/$DOMAIN_NAME/g" "$BACKEND_DIR/deploy/nginx_config_template.conf" > "/etc/nginx/sites-available/$APP_NAME"
 else
     cat > /etc/nginx/sites-available/$APP_NAME << EOF
 server {
@@ -236,7 +245,8 @@ echo -e "${GREEN}部署完成！${NC}"
 echo "============================================"
 echo ""
 echo "服务信息："
-echo "  - 应用目录: $APP_DIR"
+echo "  - 仓库目录: $APP_DIR"
+echo "  - 后端目录: $BACKEND_DIR"
 echo "  - 域名: $DOMAIN_NAME"
 echo "  - HTTP访问: http://$DOMAIN_NAME"
 echo "  - HTTPS访问: https://$DOMAIN_NAME"
@@ -246,10 +256,10 @@ echo "  - 查看服务状态: systemctl status $APP_NAME"
 echo "  - 查看实时日志: journalctl -u $APP_NAME -f"
 echo "  - 重启服务: systemctl restart $APP_NAME"
 echo "  - 重启Nginx: systemctl restart nginx"
-echo "  - 查看应用日志: tail -f $APP_DIR/logs/app.log"
+echo "  - 查看应用日志: tail -f $BACKEND_DIR/data/app.log"
 echo ""
 echo "下一步："
-echo "  1. 编辑 $APP_DIR/.env 配置API密钥"
+echo "  1. 编辑 $BACKEND_DIR/.env 配置API密钥"
 echo "  2. 重启服务: systemctl restart $APP_NAME"
 echo "  3. 测试访问: curl http://$DOMAIN_NAME/health"
 echo "  4. 在APP中配置域名: https://$DOMAIN_NAME"
