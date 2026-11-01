@@ -31,7 +31,7 @@ class CorpusLoader:
         if not self.db_path.exists():
             raise FileNotFoundError(
                 f"语料库数据库不存在: {self.db_path}\n"
-                f"请运行 python data/convert_csv_to_sqlite.py 生成数据库"
+                f"请将 names_corpus.db 放入 NameGenerationAgent/data/ 目录（该数据库不入库）"
             )
 
         # 缓存连接（每次查询时创建新连接以避免线程安全问题）
