@@ -49,9 +49,12 @@ APIKEY.txt
 .pydevproject
 .settings/
 
-# Claude Code配置（包含本地权限与敏感路径，不纳入版本控制）
+# Claude Code 配置（包含本地权限与敏感路径，不纳入版本控制）
 .claude/settings.local.json
 # .claude/mcp_settings.json
+
+# Superpowers / AI 规划文档（本地草稿，不入库）
+docs/plans/
 
 # Logs
 logs/
@@ -107,9 +110,8 @@ tmp/
 *.sqlite
 *.sqlite3
 
-# 保留数据库生成脚本，但忽略数据库文件本身
-# NameGenerationAgent/data/names_corpus.db 由 convert_csv_to_sqlite.py 生成
-# 用户需要自行运行脚本生成数据库（179MB，不适合提交到Git）
+# 数据库文件本身不入库
+# NameGenerationAgent/data/names_corpus.db 为本地运行时语料库（约 179MB），需自行准备
 
 # Archive (备份的旧数据) - 已删除，CSV文件已转换为SQLite
 archive/

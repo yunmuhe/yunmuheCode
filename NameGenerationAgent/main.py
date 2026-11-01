@@ -25,7 +25,7 @@ def main():
     env_file_path = os.path.join(project_root, '.env')
     if not os.path.exists(env_file_path):
         print("[错误] 未找到.env文件")
-        print("请运行: python quick_setup_api.py")
+        print("请复制 .env.example 为 .env 并填写配置（参见 README.md）")
         return
 
     # 加载环境变量

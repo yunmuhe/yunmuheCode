@@ -1,6 +1,6 @@
 # 名字生成智能体
 
-本仓库包含智能姓名生成系统的后端服务、前端应用和少量任务留档。项目说明入口统一收敛到这份根目录 `README.md`，其他已跟踪说明文档不再保留。
+本仓库包含智能姓名生成系统的后端服务（`NameGenerationAgent/`）与前端应用（`智能姓名生成系统/`）。根目录 `README.md` 是项目说明入口；设计文档保留在 `docs/design/`，前端另有 `智能姓名生成系统/README.md` 说明运行方式。
 
 ## 仓库概览
 
@@ -13,6 +13,10 @@
 ```text
 .
 ├── README.md
+├── AGENTS.md
+├── docs/
+│   └── design/
+│       └── 2026-03-15-baishan-design.md
 ├── NameGenerationAgent/
 │   ├── config/
 │   ├── src/
@@ -22,22 +26,23 @@
 │   │   ├── data/
 │   │   ├── utils/
 │   │   └── web/
-│   ├── data/
 │   ├── deploy/
-│   ├── logs/
 │   ├── scripts/
+│   │   └── sql/
 │   ├── tests/
-│   ├── env.example
+│   ├── .env.example
 │   ├── main.py
-│   ├── quick_start.bat
-│   ├── setup_domain.bat
-│   └── start_natapp.bat
-├── 智能姓名生成系统/
-│   ├── common/api.ts
-│   ├── pages/Generate/Generate.vue
-│   └── package.json
-└── docs/plans/
+│   └── requirements.txt
+└── 智能姓名生成系统/
+    ├── common/
+    ├── pages/
+    ├── static/
+    ├── tests/
+    ├── uni_modules/
+    └── package.json
 ```
+
+运行时会生成 `NameGenerationAgent/data/`、`NameGenerationAgent/logs/` 等目录，以及其中的数据库与日志文件，这些内容均不纳入版本控制。
 
 ## 快速开始
 
@@ -46,18 +51,20 @@
 ```bash
 cd NameGenerationAgent
 
+# 创建并激活虚拟环境（建议放在仓库根目录）
+python -m venv ../.venv
 # Windows
 ..\.venv\Scripts\activate
+# Linux / macOS
+source ../.venv/bin/activate
 
 # 安装依赖
 pip install -r requirements.txt
 
-# 初始化环境变量
-copy env.example .env
+# 初始化环境变量（Windows 使用 copy .env.example .env）
+cp .env.example .env
 
 # 启动服务
-quick_start.bat
-# 或
 python main.py
 
 # 基础检查
@@ -73,9 +80,11 @@ npm run dev:h5
 npm run dev:mp-weixin
 ```
 
+前端 npm 脚本目前使用 Windows 风格的环境变量写法（`set UNI_INPUT_DIR=...`）。在 Linux / macOS 下可改用 `UNI_INPUT_DIR=. npx uni <command>`，例如 `UNI_INPUT_DIR=. npx uni build -p h5`；后续可考虑引入 `cross-env` 统一两端的写法。
+
 ## 开发与协作约定
 
-- Python 目标版本为 3.8+。
+- Python 目标版本为 3.11+（代码使用了 `zoneinfo`、`datetime.UTC` 等标准库能力）。
 - 后端代码风格使用 4 空格缩进，函数和变量使用 `snake_case`，类使用 `PascalCase`。
 - 为避免循环依赖，优先使用延迟导入。
 - 适配器异常统一使用 `APIException`。
@@ -117,6 +126,7 @@ Utils 层 -> src/utils/logger.py, validation.py, cache_manager.py
 
 - `aliyun`
 - `siliconflow`
+- `baishan`
 - `openai`
 - `gemini`
 - `paiou`
@@ -221,14 +231,9 @@ GET /models?api=aliyun&refresh=true
 
 数据库配置方式：
 
-- 优先使用 `DATABASE_URL`
-- 或使用以下拆分变量：
-  - `DB_DIALECT`
-  - `MYSQL_HOST`
-  - `MYSQL_PORT`
-  - `MYSQL_USER`
-  - `MYSQL_PASSWORD`
-  - `MYSQL_DATABASE`
+- 默认使用 SQLite，数据库文件位于 `NameGenerationAgent/data/name_generation_agent.db`（可用 `SQLITE_DATABASE_PATH` 覆盖）。
+- 也可用 `DATABASE_URL=sqlite:///...` 显式指定 SQLite 文件。
+- 应用运行时不读取 MySQL 连接变量；MySQL 仅作为迁移脚本的目标库（见下文 `--target-db-url`）。
 
 管理员自举：
 
@@ -273,8 +278,8 @@ python scripts/migrate_auth_sqlite_to_mysql.py \
 
 ### 语料库未加载
 
-- 检查 `NameGenerationAgent/data/names_corpus.db` 是否存在。
-- 必要时在 `NameGenerationAgent/data/` 下运行 `python convert_csv_to_sqlite.py`。
+- `NameGenerationAgent/data/names_corpus.db` 为本地运行时文件，未纳入版本控制。
+- 若该文件缺失，语料增强会自动跳过，不影响主流程；需要增强时请自行准备该 SQLite 数据库并放到 `NameGenerationAgent/data/` 目录。
 
 ### 模型列表为空或刷新失败
 
@@ -292,19 +297,22 @@ Get-Content .\logs\app.log -Wait -Tail 50 | Select-String -Pattern "ERROR|WARNIN
 
 ## 部署与性能
 
-本仓库已保留几个现成入口：
+本仓库保留的部署入口：
 
-- 内网穿透：`NameGenerationAgent/start_natapp.bat`
-- 域名配置：`NameGenerationAgent/setup_domain.bat`
-- 服务快速启动：`NameGenerationAgent/quick_start.bat`
-- 服务器部署：`NameGenerationAgent/deploy/deploy_to_server.sh`
+- 服务器部署脚本：`NameGenerationAgent/deploy/deploy_to_server.sh`
+- systemd 服务模板：`NameGenerationAgent/deploy/nameagent.service`
+- Nginx 反向代理模板：`NameGenerationAgent/deploy/nginx_config_template.conf`
+
+早期用于 Windows 本地启动、natapp 内网穿透和域名配置的 `.bat` 辅助脚本已从仓库移除，可从 git 历史恢复：`git log --all -- 'NameGenerationAgent/*.bat'`。本地启动统一使用上面的跨平台命令。
+
+注意：`deploy_to_server.sh` 与 `nameagent.service` 仍按“仓库根目录即后端目录”的旧布局编写（`APP_DIR=/home/NameGenerationAgent`、`requirements.txt` 位于根目录），实际部署到当前 monorepo 布局时需要相应调整路径。
 
 性能侧重点：
 
 - 缓存命中可显著降低响应时间。
 - 首次模型发现或远端模型查询明显慢于缓存命中。
 - 生成接口耗时主要取决于目标平台响应时间。
-- 若需压测，可使用 `NameGenerationAgent/tests/locustfile.py` 和 `NameGenerationAgent/tests/locustfile_cache_comparison.py`。
+- 压测脚本未随仓库提供，可按需在 `NameGenerationAgent/tests/` 下自行补充。
 
 ## 扩展开发
 
